@@ -630,8 +630,6 @@ func _show_party_preview():
         status.text = NetworkManager.last_status
         if err == OK:
             host_button.disabled = true
-            join_button.disabled = true
-            address_input.editable = false
             status.text += "\\nGive your friend your public IP address. They may need port 24560/UDP forwarded on the host router."
     )
     outer.add_child(host_button)

@@ -54,3 +54,14 @@ Setup checklist:
 4. Test creating a lobby and inviting a friend. A full production integration still needs Steam lobby join callbacks wired into the game's session/match flow and a Steam-capable networking transport (or a reachable ENet host).
 
 Without GodotSteam installed, Panda Royale should still launch normally; the optional Steam button will report that Steam support needs setup.
+
+
+### Local Steam invite testing
+
+The repository includes `steam_appid.txt` set to `480` (Valve's Spacewar test app) for local development only. Keep Steam running when testing. This file does **not** install GodotSteam or make the game a Steamworks app by itself. You must install a GodotSteam GDExtension build compatible with the exact Godot 4.7 editor/export template and include its native Windows DLLs in the exported game. If Godot reports that the `Steam` singleton is missing, the extension is not loaded.
+
+For production, replace the test ID with Panda Royale's own Steamworks App ID and ensure the App ID file is beside the executable when launching outside Steam. Do not publish a game using App ID 480. The current invite bridge creates a Steam lobby, but joining that lobby is not yet wired to the game's ENet match session.
+
+Official references:
+- GodotSteam initialization guidance: https://github.com/GodotSteam/GodotSteam-Docs
+- GodotSteam releases and compatible binaries: https://github.com/GodotSteam/GodotSteam/releases

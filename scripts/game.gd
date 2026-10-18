@@ -272,10 +272,24 @@ func _finish_match(won: bool):
     restart.pressed.connect(func(): get_tree().reload_current_scene())
     hud.add_child(restart)
 
+func place_build_wall(builder):
+    if not game_started or paused or match_over or not is_instance_valid(builder):
+        return false
+    if builder.wood < 10:
+        return false
+    builder.wood -= 10
+    var forward = -builder.global_transform.basis.z
+    var wall_position = builder.global_position + forward * 3.6
+    wall_position.y = 1.5
+    _make_box("Player Built Wall", wall_position, Vector3(4.0, 3.0, 0.35), Color(0.48, 0.31, 0.16), true, builder.rotation.y)
+    return true
+
 func damage_bot(bot, amount):
     if is_instance_valid(bot):
         bot.health -= amount
         if bot.health <= 0:
+            if is_instance_valid(player):
+                player.wood = min(200, player.wood + 20)
             bot.queue_free()
             # drop a little ammo/health pickup
             var pickup = Area3D.new()
@@ -292,6 +306,13 @@ func _build_menus():
     menu_layer.mouse_filter = Control.MOUSE_FILTER_STOP
     menu_layer.process_mode = Node.PROCESS_MODE_ALWAYS
     hud.add_child(menu_layer)
+
+    var backdrop = ColorRect.new()
+    backdrop.name = "MenuBackdrop"
+    backdrop.color = Color(0.015, 0.025, 0.05, 0.82)
+    backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+    menu_layer.add_child(backdrop)
 
     main_menu = _create_menu_panel("MainMenu", Vector2(560, 560))
     menu_layer.add_child(main_menu)

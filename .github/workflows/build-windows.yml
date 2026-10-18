@@ -22,7 +22,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Godot 4.4.1 and Windows export templates
+      - name: Install Godot 4.7 and Windows export templates
         shell: bash
         run: |
           set -euo pipefail

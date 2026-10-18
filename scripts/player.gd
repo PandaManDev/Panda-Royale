@@ -5,6 +5,8 @@ var health := 100.0
 var shield := 50.0
 var ammo := 30
 var reserve_ammo := 150
+var wood := 100
+var build_mode := false
 var move_speed := 7.5
 var sprint_speed := 11.0
 var jump_velocity := 5.2
@@ -74,10 +76,16 @@ func _unhandled_input(event):
         pitch = clamp(pitch - event.relative.y * mouse_sensitivity, -1.48, 1.48)
         camera.rotation.x = pitch
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-        fire()
+        if build_mode:
+            if is_instance_valid(game):
+                game.place_build_wall(self)
+        else:
+            fire()
     if event is InputEventKey and event.pressed and not event.echo:
         if event.keycode == KEY_R:
             reload_weapon()
+        elif event.keycode == KEY_B:
+            build_mode = not build_mode
 
 func _physics_process(delta):
     if not is_instance_valid(game) or not game.game_started or game.paused or game.match_over:

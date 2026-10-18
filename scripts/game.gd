@@ -576,12 +576,143 @@ func _set_display_mode(index: int):
         DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 func _show_party_preview():
-    var dialog = AcceptDialog.new()
-    dialog.title = "PARTY / INVITE FRIENDS"
-    dialog.dialog_text = "Party lobby preview. Real online invites and Duos require a multiplayer server; they are not connected yet."
-    dialog.process_mode = Node.PROCESS_MODE_ALWAYS
-    menu_layer.add_child(dialog)
-    dialog.popup_centered(Vector2i(560, 220))
+    # Custom party panel instead of the default gray Godot AcceptDialog.
+    var existing = menu_layer.get_node_or_null("PartyPanel")
+    if existing:
+        existing.queue_free()
+
+    main_menu.visible = false
+    pause_menu.visible = false
+    settings_menu.visible = false
+    menu_layer.visible = true
+
+    var panel = _create_menu_panel("PartyPanel", Vector2(760, 560))
+    panel.anchor_left = 0.5
+    panel.anchor_top = 0.5
+    panel.anchor_right = 0.5
+    panel.anchor_bottom = 0.5
+    panel.offset_left = -380
+    panel.offset_top = -280
+    panel.offset_right = 380
+    panel.offset_bottom = 280
+    menu_layer.add_child(panel)
+
+    var outer = VBoxContainer.new()
+    outer.add_theme_constant_override("separation", 14)
+    panel.add_child(outer)
+
+    var heading = Label.new()
+    heading.text = "PARTY LOBBY"
+    heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    heading.add_theme_font_size_override("font_size", 32)
+    heading.add_theme_color_override("font_color", Color(0.78, 0.91, 1.0))
+    outer.add_child(heading)
+
+    var subtitle = Label.new()
+    subtitle.text = "SQUAD UP BEFORE YOU DROP IN"
+    subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    subtitle.add_theme_font_size_override("font_size", 13)
+    subtitle.add_theme_color_override("font_color", Color(0.35, 0.82, 1.0))
+    outer.add_child(subtitle)
+
+    var slots = GridContainer.new()
+    slots.columns = 2
+    slots.add_theme_constant_override("h_separation", 12)
+    slots.add_theme_constant_override("v_separation", 12)
+    outer.add_child(slots)
+
+    for i in range(4):
+        var slot = PanelContainer.new()
+        slot.custom_minimum_size = Vector2(300, 112)
+        var slot_style = StyleBoxFlat.new()
+        slot_style.bg_color = Color(0.07, 0.11, 0.17, 1.0) if i == 0 else Color(0.045, 0.07, 0.11, 1.0)
+        slot_style.border_color = Color(0.20, 0.65, 0.95, 0.95) if i == 0 else Color(0.19, 0.27, 0.36, 1.0)
+        slot_style.set_border_width_all(1)
+        slot_style.set_corner_radius_all(8)
+        slot.add_theme_stylebox_override("panel", slot_style)
+        slots.add_child(slot)
+
+        var slot_box = VBoxContainer.new()
+        slot_box.alignment = BoxContainer.ALIGNMENT_CENTER
+        slot_box.add_theme_constant_override("separation", 5)
+        slot.add_child(slot_box)
+
+        var player_name = Label.new()
+        player_name.text = "YOU  •  PARTY LEADER" if i == 0 else "OPEN PARTY SLOT"
+        player_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        player_name.add_theme_font_size_override("font_size", 16 if i == 0 else 14)
+        player_name.add_theme_color_override("font_color", Color(0.85, 0.94, 1.0) if i == 0 else Color(0.55, 0.65, 0.76))
+        slot_box.add_child(player_name)
+
+        var slot_state = Label.new()
+        slot_state.text = "READY TO DROP" if i == 0 else "Invite a friend to fill this slot"
+        slot_state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        slot_state.add_theme_font_size_override("font_size", 11)
+        slot_state.add_theme_color_override("font_color", Color(0.35, 0.82, 1.0) if i == 0 else Color(0.45, 0.53, 0.63))
+        slot_box.add_child(slot_state)
+
+    var mode_row = HBoxContainer.new()
+    mode_row.alignment = BoxContainer.ALIGNMENT_CENTER
+    mode_row.add_theme_constant_override("separation", 12)
+    outer.add_child(mode_row)
+
+    var mode_label = Label.new()
+    mode_label.text = "GAME MODE"
+    mode_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    mode_label.add_theme_font_size_override("font_size", 14)
+    mode_label.add_theme_color_override("font_color", Color(0.78, 0.86, 0.94))
+    mode_row.add_child(mode_label)
+
+    var mode_picker = OptionButton.new()
+    mode_picker.custom_minimum_size = Vector2(220, 40)
+    mode_picker.add_item("SOLO")
+    mode_picker.add_item("DUOS (NETWORKING NOT CONNECTED)")
+    mode_picker.selected = 1 if selected_mode == "DUOS" else 0
+    mode_picker.item_selected.connect(func(index): selected_mode = "DUOS" if index == 1 else "SOLO")
+    mode_row.add_child(mode_picker)
+
+    var note = Label.new()
+    note.text = "Friend invitations and online Duos are not connected yet. This lobby is currently a local UI preview."
+    note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    note.add_theme_font_size_override("font_size", 12)
+    note.add_theme_color_override("font_color", Color(0.72, 0.77, 0.84))
+    outer.add_child(note)
+
+    var buttons = HBoxContainer.new()
+    buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+    buttons.add_theme_constant_override("separation", 12)
+    outer.add_child(buttons)
+
+    var invite_button = Button.new()
+    invite_button.text = "INVITE FRIENDS"
+    invite_button.custom_minimum_size = Vector2(210, 48)
+    invite_button.add_theme_font_size_override("font_size", 15)
+    invite_button.pressed.connect(func():
+        note.text = "Online friend invites are not configured yet. A multiplayer service and friend identity system must be connected first."
+    )
+    buttons.add_child(invite_button)
+
+    var ready_button = Button.new()
+    ready_button.text = "READY / PLAY"
+    ready_button.custom_minimum_size = Vector2(180, 48)
+    ready_button.add_theme_font_size_override("font_size", 15)
+    ready_button.pressed.connect(func():
+        panel.queue_free()
+        _start_match()
+    )
+    buttons.add_child(ready_button)
+
+    var back_button = Button.new()
+    back_button.text = "BACK"
+    back_button.custom_minimum_size = Vector2(120, 48)
+    back_button.add_theme_font_size_override("font_size", 15)
+    back_button.pressed.connect(func():
+        panel.queue_free()
+        main_menu.visible = true
+        menu_layer.visible = true
+    )
+    buttons.add_child(back_button)
 
 func try_open_chest(opener):
     for node in get_children():

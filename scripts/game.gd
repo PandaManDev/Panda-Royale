@@ -612,6 +612,15 @@ func _show_party_preview():
     mode_picker.item_selected.connect(func(index): selected_mode = "DUOS" if index == 1 else "SOLO")
     mode_row.add_child(mode_picker)
 
+    var status = Label.new()
+    status.name = "ConnectionStatus"
+    status.text = "Offline — host a party or enter your friend's address to join."
+    status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    status.custom_minimum_size = Vector2(580, 58)
+    status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    status.add_theme_color_override("font_color", Color(0.65, 0.9, 1.0))
+    outer.add_child(status)
+
     var host_button = Button.new()
     host_button.text = "HOST PARTY"
     host_button.custom_minimum_size = Vector2(360, 48)
@@ -650,15 +659,6 @@ func _show_party_preview():
             host_button.disabled = true
     )
     outer.add_child(join_button)
-
-    var status = Label.new()
-    status.name = "ConnectionStatus"
-    status.text = "Offline — host a party or enter your friend's address to join."
-    status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    status.custom_minimum_size = Vector2(580, 58)
-    status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    status.add_theme_color_override("font_color", Color(0.65, 0.9, 1.0))
-    outer.add_child(status)
 
     var network_callback = func(message: String):
         if is_instance_valid(status):

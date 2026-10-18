@@ -33,7 +33,6 @@ jobs:
           curl -fL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o "$RUNNER_TEMP/godot/templates.tpz"
           unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/templates"
           cp -a "$RUNNER_TEMP/godot/templates/templates/." "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
-          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
           GODOT_BIN="$(find "$RUNNER_TEMP/godot" -maxdepth 1 -type f -name 'Godot_v*linux.x86_64' | head -n 1)"
           chmod +x "$GODOT_BIN"
           ln -sf "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
@@ -53,8 +52,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PandaRoyale-Windows
-          path: |
-            build/PandaRoyale.exe
-            build/PandaRoyale.pck
+          path: build/PandaRoyale.exe
           if-no-files-found: error
           retention-days: 14

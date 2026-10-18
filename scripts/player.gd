@@ -67,6 +67,8 @@ func _ready():
     camera.add_child(muzzle_flash)
 
 func _unhandled_input(event):
+    if not is_instance_valid(game) or not game.game_started or game.paused or game.match_over:
+        return
     if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and health > 0:
         rotate_y(-event.relative.x * mouse_sensitivity)
         pitch = clamp(pitch - event.relative.y * mouse_sensitivity, -1.48, 1.48)
@@ -78,6 +80,8 @@ func _unhandled_input(event):
             reload_weapon()
 
 func _physics_process(delta):
+    if not is_instance_valid(game) or not game.game_started or game.paused or game.match_over:
+        return
     fire_cooldown = max(0.0, fire_cooldown - delta)
     muzzle_flash.light_energy = max(0.0, muzzle_flash.light_energy - delta * 18.0)
     if reload_time > 0:

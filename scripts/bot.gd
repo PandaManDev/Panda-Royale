@@ -58,7 +58,7 @@ func _ready():
     add_child(vest)
 
 func _physics_process(delta):
-    if health <= 0 or not is_instance_valid(game) or not is_instance_valid(game.player) or game.match_over:
+    if health <= 0 or not is_instance_valid(game) or not is_instance_valid(game.player) or game.match_over or not game.game_started or game.paused:
         return
     player = game.player
     var target = player.global_position

@@ -3,6 +3,7 @@ extends Node3D
 const PLAYER_SCRIPT = preload("res://scripts/player.gd")
 const BOT_SCRIPT = preload("res://scripts/bot.gd")
 const PICKUP_SCRIPT = preload("res://scripts/pickup.gd")
+const CHEST_SCRIPT = preload("res://scripts/chest.gd")
 
 var player
 var bots: Array = []
@@ -26,6 +27,9 @@ var pause_menu: PanelContainer
 var settings_menu: PanelContainer
 var settings_return_to_pause := false
 var crosshair_label: Label
+var stats_label: Label
+var show_performance_stats := false
+var selected_mode := "SOLO"
 
 func _ready():
     randomize()
@@ -169,8 +173,13 @@ func _spawn_bots(count: int):
         add_child(bot)
         bot.game = self
         bots.append(bot)
-    # loot scattered around cover
-    for i in range(26):
+    for i in range(18):
+        var chest = Area3D.new()
+        chest.set_script(CHEST_SCRIPT)
+        var chest_point = _random_point(78)
+        chest.position = Vector3(chest_point.x, 0.0, chest_point.z)
+        add_child(chest)
+    for i in range(32):
         var pickup = Area3D.new()
         pickup.set_script(PICKUP_SCRIPT)
         var loot_point = _random_point(82)
@@ -192,13 +201,13 @@ func _build_hud():
     hud.add_child(top)
 
     health_label = Label.new()
-    health_label.position = Vector2(28, 620)
+    health_label.position = Vector2(28, 575)
     health_label.add_theme_font_size_override("font_size", 22)
     health_label.add_theme_color_override("font_color", Color(0.45,1.0,0.63))
     hud.add_child(health_label)
 
     ammo_label = Label.new()
-    ammo_label.position = Vector2(28, 655)
+    ammo_label.position = Vector2(28, 615)
     ammo_label.add_theme_font_size_override("font_size", 18)
     ammo_label.add_theme_color_override("font_color", Color(0.93,0.96,1))
     hud.add_child(ammo_label)
@@ -244,14 +253,24 @@ func _build_hud():
     controls.add_theme_font_size_override("font_size", 14)
     controls.add_theme_color_override("font_color", Color(0.78,0.84,0.89))
     hud.add_child(controls)
+    stats_label = Label.new()
+    stats_label.position = Vector2(28, 92)
+    stats_label.add_theme_font_size_override("font_size", 14)
+    stats_label.add_theme_color_override("font_color", Color(0.65, 0.9, 1.0))
+    stats_label.visible = false
+    hud.add_child(stats_label)
 
 func _update_hud():
     if not player:
         return
     health_label.text = "♥  %d HP     ◆  %d SHIELD" % [int(player.health), int(player.shield)]
-    ammo_label.text = "AMMO  %02d / %03d     WOOD  %03d%s" % [player.ammo, player.reserve_ammo, player.wood, "  •  BUILD MODE: CLICK TO PLACE" if player.build_mode else "  •  B TO BUILD"]
-    alive_label.text = "ALIVE  %02d" % (bots.size() + (1 if player.health > 0 else 0))
-    zone_label.text = "SAFE ZONE  %d m" % int(safe_radius)
+    ammo_label.text = "%s   AMMO %02d / %03d   WOOD %03d%s" % [player.weapon_name, player.ammo, player.reserve_ammo, player.wood, "  •  BUILD MODE: CLICK TO PLACE" if player.build_mode else "  •  B TO BUILD"]
+    alive_label.text = "ALIVE  %02d   •   LVL %02d   •   XP %03d" % [bots.size() + (1 if player.health > 0 else 0), player.level, player.xp]
+    zone_label.text = "SAFE ZONE  %d m  •  %s" % [int(safe_radius), selected_mode]
+    if stats_label:
+        stats_label.visible = show_performance_stats
+        if show_performance_stats:
+            stats_label.text = "FPS %d  |  PING N/A (OFFLINE)  |  CPU/GPU N/A" % Engine.get_frames_per_second()
     if zone_timer < 18:
         status_label.text = "SAFE ZONE SHRINKS IN %02d" % int(18-zone_timer)
     else:
@@ -291,6 +310,7 @@ func damage_bot(bot, amount):
         if bot.health <= 0:
             if is_instance_valid(player):
                 player.wood = min(200, player.wood + 20)
+                award_xp(50)
             bot.queue_free()
             # drop a little ammo/health pickup
             var pickup = Area3D.new()
@@ -315,7 +335,7 @@ func _build_menus():
     backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
     menu_layer.add_child(backdrop)
 
-    main_menu = _create_menu_panel("MainMenu", Vector2(560, 560))
+    main_menu = _create_menu_panel("MainMenu", Vector2(560, 620))
     menu_layer.add_child(main_menu)
     var main_box = _menu_box(main_menu)
     _menu_label(main_box, "PANDA ROYALE", 38, Color(0.78, 0.91, 1.0), true)
@@ -323,7 +343,13 @@ func _build_menus():
     _menu_spacer(main_box, 8)
     _menu_label(main_box, "SEASON ZERO  •  ISLAND TEST BUILD", 13, Color(0.35, 0.82, 1.0), true)
     _menu_spacer(main_box, 14)
+    var mode_picker = OptionButton.new()
+    mode_picker.add_item("SOLO")
+    mode_picker.add_item("DUOS (PREVIEW)")
+    mode_picker.item_selected.connect(func(index): selected_mode = "DUOS" if index == 1 else "SOLO")
+    main_box.add_child(mode_picker)
     _menu_button(main_box, "PLAY", _start_match, true)
+    _menu_button(main_box, "PARTY / INVITE FRIENDS", _show_party_preview, false)
     _menu_button(main_box, "SETTINGS", _open_settings, false)
     _menu_button(main_box, "HOW TO PLAY", _show_controls, false)
     _menu_button(main_box, "QUIT GAME", _quit_game, false)
@@ -342,11 +368,11 @@ func _build_menus():
     _menu_button(pause_box, "MAIN MENU", _return_to_main_menu, false)
     pause_menu.visible = false
 
-    settings_menu = _create_menu_panel("SettingsMenu", Vector2(560, 520))
+    settings_menu = _create_menu_panel("SettingsMenu", Vector2(560, 620))
     menu_layer.add_child(settings_menu)
     var settings_box = _menu_box(settings_menu)
     _menu_label(settings_box, "GAME SETTINGS", 32, Color(0.85, 0.94, 1.0), true)
-    _menu_label(settings_box, "Tune your aim and your view.", 13, Color(0.68, 0.76, 0.86), false)
+    _menu_label(settings_box, "Tune your aim, graphics and display.", 13, Color(0.68, 0.76, 0.86), false)
     _menu_spacer(settings_box, 8)
 
     var sensitivity_title = Label.new()
@@ -377,6 +403,22 @@ func _build_menus():
     fov_slider.value_changed.connect(_set_fov)
     settings_box.add_child(fov_slider)
 
+    var quality_picker = OptionButton.new()
+    for quality in ["LOW", "MEDIUM", "HIGH", "EPIC"]:
+        quality_picker.add_item(quality)
+    quality_picker.selected = 2
+    quality_picker.item_selected.connect(func(index): _set_graphics_quality(["LOW", "MEDIUM", "HIGH", "EPIC"][index]))
+    settings_box.add_child(quality_picker)
+    var display_picker = OptionButton.new()
+    display_picker.add_item("WINDOWED")
+    display_picker.add_item("BORDERLESS")
+    display_picker.add_item("FULLSCREEN")
+    display_picker.item_selected.connect(_set_display_mode)
+    settings_box.add_child(display_picker)
+    var stats_toggle = CheckButton.new()
+    stats_toggle.text = "Show FPS / ping / system stats"
+    stats_toggle.toggled.connect(func(value): show_performance_stats = value)
+    settings_box.add_child(stats_toggle)
     var crosshair_toggle = CheckButton.new()
     crosshair_toggle.text = "Show crosshair"
     crosshair_toggle.button_pressed = true
@@ -512,6 +554,50 @@ func _set_sensitivity(value: float):
 func _set_fov(value: float):
     if player and player.camera:
         player.camera.fov = value
+
+func _set_graphics_quality(value: String):
+    if world_env and world_env.environment:
+        world_env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC if value in ["HIGH", "EPIC"] else Environment.TONE_MAPPER_LINEAR
+        world_env.environment.ambient_light_energy = 0.45 if value == "LOW" else (0.85 if value == "EPIC" else 0.65)
+    for node in get_children():
+        if node is DirectionalLight3D:
+            node.shadow_enabled = value in ["HIGH", "EPIC"]
+    get_viewport().scaling_3d_scale = 0.75 if value == "LOW" else (0.9 if value == "MEDIUM" else 1.0)
+
+func _set_display_mode(index: int):
+    if index == 0:
+        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+        DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+    elif index == 1:
+        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+        DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+    else:
+        DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+        DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+func _show_party_preview():
+    var dialog = AcceptDialog.new()
+    dialog.title = "PARTY / INVITE FRIENDS"
+    dialog.dialog_text = "Party lobby preview. Real online invites and Duos require a multiplayer server; they are not connected yet."
+    dialog.process_mode = Node.PROCESS_MODE_ALWAYS
+    menu_layer.add_child(dialog)
+    dialog.popup_centered(Vector2i(560, 220))
+
+func try_open_chest(opener):
+    for node in get_children():
+        if node.has_method("open_for_player") and node is Node3D and node.global_position.distance_to(opener.global_position) < 3.2:
+            node.open_for_player(opener)
+            return
+
+func award_xp(amount: int):
+    if not is_instance_valid(player):
+        return
+    player.xp += amount
+    var required = player.level * 100
+    while player.xp >= required:
+        player.xp -= required
+        player.level += 1
+        required = player.level * 100
 
 func _set_crosshair_visible(value: bool):
     if crosshair_label:

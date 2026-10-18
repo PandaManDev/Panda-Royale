@@ -18,6 +18,14 @@ var zone_label: Label
 var center_marker: MeshInstance3D
 var zone_ring: MeshInstance3D
 var world_env: WorldEnvironment
+var game_started := false
+var paused := false
+var menu_layer: Control
+var main_menu: PanelContainer
+var pause_menu: PanelContainer
+var settings_menu: PanelContainer
+var settings_return_to_pause := false
+var crosshair_label: Label
 
 func _ready():
     randomize()
@@ -26,10 +34,11 @@ func _ready():
     _spawn_player()
     _spawn_bots(12)
     _build_hud()
-    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+    _build_menus()
+    Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _process(delta):
-    if match_over:
+    if match_over or not game_started or paused:
         return
     zone_timer += delta
     if zone_timer > 18.0:
@@ -49,10 +58,15 @@ func _process(delta):
         _finish_match(false)
 
 func _unhandled_input(event):
-    if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-        if not match_over:
-            Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-    if event is InputEventMouseButton and event.pressed and not match_over:
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+        if game_started and not match_over:
+            if settings_menu and settings_menu.visible:
+                _close_settings()
+            elif paused:
+                _resume_game()
+            else:
+                _pause_game()
+    if event is InputEventMouseButton and event.pressed and not match_over and game_started and not paused:
         Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _build_world():
@@ -216,6 +230,7 @@ func _build_hud():
 
     var cross = Label.new()
     cross.text = "+"
+    crosshair_label = cross
     cross.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
     cross.position += Vector2(-10,-19)
     cross.add_theme_font_size_override("font_size", 30)
@@ -243,6 +258,9 @@ func _update_hud():
 
 func _finish_match(won: bool):
     match_over = true
+    paused = false
+    if menu_layer:
+        menu_layer.visible = false
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
     status_label.text = "VICTORY ROYALE!\nYou are the last one standing." if won else "ELIMINATED\nBetter luck next drop."
     status_label.add_theme_color_override("font_color", Color(1,0.82,0.30) if won else Color(1,0.35,0.32))
@@ -265,6 +283,228 @@ func damage_bot(bot, amount):
             pickup.position = bot.global_position + Vector3(0,0.8,0)
             add_child(pickup)
             pickup.game = self
+
+
+func _build_menus():
+    menu_layer = Control.new()
+    menu_layer.name = "MenuLayer"
+    menu_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    menu_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+    menu_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+    hud.add_child(menu_layer)
+
+    main_menu = _create_menu_panel("MainMenu", Vector2(560, 560))
+    menu_layer.add_child(main_menu)
+    var main_box = _menu_box(main_menu)
+    _menu_label(main_box, "PANDA ROYALE", 38, Color(0.78, 0.91, 1.0), true)
+    _menu_label(main_box, "DROP IN. LOOT UP. BE THE LAST PANDA STANDING.", 12, Color(0.68, 0.76, 0.86), false)
+    _menu_spacer(main_box, 8)
+    _menu_label(main_box, "SEASON ZERO  •  ISLAND TEST BUILD", 13, Color(0.35, 0.82, 1.0), true)
+    _menu_spacer(main_box, 14)
+    _menu_button(main_box, "PLAY", _start_match, true)
+    _menu_button(main_box, "SETTINGS", _open_settings, false)
+    _menu_button(main_box, "HOW TO PLAY", _show_controls, false)
+    _menu_button(main_box, "QUIT GAME", _quit_game, false)
+    _menu_spacer(main_box, 8)
+    _menu_label(main_box, "WASD MOVE  •  SHIFT SPRINT  •  SPACE JUMP  •  MOUSE AIM", 11, Color(0.63, 0.70, 0.78), false)
+
+    pause_menu = _create_menu_panel("PauseMenu", Vector2(480, 420))
+    menu_layer.add_child(pause_menu)
+    var pause_box = _menu_box(pause_menu)
+    _menu_label(pause_box, "MATCH PAUSED", 32, Color(0.85, 0.94, 1.0), true)
+    _menu_label(pause_box, "Take a breath. The island can wait.", 13, Color(0.68, 0.76, 0.86), false)
+    _menu_spacer(pause_box, 12)
+    _menu_button(pause_box, "RESUME MATCH", _resume_game, true)
+    _menu_button(pause_box, "SETTINGS", _open_settings_from_pause, false)
+    _menu_button(pause_box, "RESTART MATCH", _restart_match, false)
+    _menu_button(pause_box, "MAIN MENU", _return_to_main_menu, false)
+    pause_menu.visible = false
+
+    settings_menu = _create_menu_panel("SettingsMenu", Vector2(560, 520))
+    menu_layer.add_child(settings_menu)
+    var settings_box = _menu_box(settings_menu)
+    _menu_label(settings_box, "GAME SETTINGS", 32, Color(0.85, 0.94, 1.0), true)
+    _menu_label(settings_box, "Tune your aim and your view.", 13, Color(0.68, 0.76, 0.86), false)
+    _menu_spacer(settings_box, 8)
+
+    var sensitivity_title = Label.new()
+    sensitivity_title.text = "MOUSE SENSITIVITY"
+    sensitivity_title.add_theme_font_size_override("font_size", 13)
+    sensitivity_title.add_theme_color_override("font_color", Color(0.78, 0.86, 0.94))
+    settings_box.add_child(sensitivity_title)
+    var sensitivity = HSlider.new()
+    sensitivity.min_value = 0.0008
+    sensitivity.max_value = 0.004
+    sensitivity.step = 0.0001
+    sensitivity.value = player.mouse_sensitivity
+    sensitivity.custom_minimum_size = Vector2(360, 28)
+    sensitivity.value_changed.connect(_set_sensitivity)
+    settings_box.add_child(sensitivity)
+
+    var fov_title = Label.new()
+    fov_title.text = "FIELD OF VIEW"
+    fov_title.add_theme_font_size_override("font_size", 13)
+    fov_title.add_theme_color_override("font_color", Color(0.78, 0.86, 0.94))
+    settings_box.add_child(fov_title)
+    var fov_slider = HSlider.new()
+    fov_slider.min_value = 70
+    fov_slider.max_value = 105
+    fov_slider.step = 1
+    fov_slider.value = player.camera.fov
+    fov_slider.custom_minimum_size = Vector2(360, 28)
+    fov_slider.value_changed.connect(_set_fov)
+    settings_box.add_child(fov_slider)
+
+    var crosshair_toggle = CheckButton.new()
+    crosshair_toggle.text = "Show crosshair"
+    crosshair_toggle.button_pressed = true
+    crosshair_toggle.add_theme_color_override("font_color", Color(0.85, 0.91, 0.98))
+    crosshair_toggle.toggled.connect(_set_crosshair_visible)
+    settings_box.add_child(crosshair_toggle)
+    _menu_spacer(settings_box, 8)
+    _menu_button(settings_box, "BACK", _close_settings, true)
+    settings_menu.visible = false
+
+func _create_menu_panel(panel_name: String, panel_size: Vector2) -> PanelContainer:
+    var panel = PanelContainer.new()
+    panel.name = panel_name
+    panel.anchor_left = 0.5
+    panel.anchor_top = 0.5
+    panel.anchor_right = 0.5
+    panel.anchor_bottom = 0.5
+    panel.offset_left = -panel_size.x / 2.0
+    panel.offset_top = -panel_size.y / 2.0
+    panel.offset_right = panel_size.x / 2.0
+    panel.offset_bottom = panel_size.y / 2.0
+    panel.add_theme_stylebox_override("panel", _panel_style())
+    panel.add_theme_constant_override("panel", 28)
+    return panel
+
+func _panel_style() -> StyleBoxFlat:
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(0.035, 0.055, 0.09, 0.97)
+    style.border_color = Color(0.20, 0.65, 0.95, 0.95)
+    style.set_border_width_all(2)
+    style.set_corner_radius_all(12)
+    style.content_margin_left = 26
+    style.content_margin_right = 26
+    style.content_margin_top = 22
+    style.content_margin_bottom = 22
+    return style
+
+func _menu_box(panel: PanelContainer) -> VBoxContainer:
+    var box = VBoxContainer.new()
+    box.alignment = BoxContainer.ALIGNMENT_CENTER
+    box.add_theme_constant_override("separation", 10)
+    panel.add_child(box)
+    return box
+
+func _menu_label(parent: Node, text_value: String, font_size: int, color: Color, centered: bool):
+    var label = Label.new()
+    label.text = text_value
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
+    label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    label.add_theme_font_size_override("font_size", font_size)
+    label.add_theme_color_override("font_color", color)
+    parent.add_child(label)
+
+func _menu_spacer(parent: Node, pixels: float):
+    var spacer = Control.new()
+    spacer.custom_minimum_size = Vector2(1, pixels)
+    parent.add_child(spacer)
+
+func _menu_button(parent: Node, label_text: String, action: Callable, primary: bool):
+    var button = Button.new()
+    button.text = label_text
+    button.custom_minimum_size = Vector2(360, 48)
+    button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    button.add_theme_font_size_override("font_size", 16)
+    button.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
+    var normal = StyleBoxFlat.new()
+    normal.bg_color = Color(0.06, 0.42, 0.68, 1.0) if primary else Color(0.10, 0.15, 0.22, 1.0)
+    normal.border_color = Color(0.22, 0.78, 1.0, 1.0) if primary else Color(0.25, 0.36, 0.48, 1.0)
+    normal.set_border_width_all(1)
+    normal.set_corner_radius_all(7)
+    var hover = normal.duplicate()
+    hover.bg_color = Color(0.08, 0.56, 0.84, 1.0) if primary else Color(0.16, 0.25, 0.36, 1.0)
+    button.add_theme_stylebox_override("normal", normal)
+    button.add_theme_stylebox_override("hover", hover)
+    button.add_theme_stylebox_override("pressed", hover)
+    button.pressed.connect(action)
+    parent.add_child(button)
+
+func _start_match():
+    game_started = true
+    paused = false
+    main_menu.visible = false
+    pause_menu.visible = false
+    settings_menu.visible = false
+    menu_layer.visible = false
+    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _pause_game():
+    if not game_started or match_over:
+        return
+    paused = true
+    pause_menu.visible = true
+    menu_layer.visible = true
+    Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _resume_game():
+    paused = false
+    pause_menu.visible = false
+    settings_menu.visible = false
+    menu_layer.visible = false
+    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _restart_match():
+    get_tree().reload_current_scene()
+
+func _return_to_main_menu():
+    get_tree().reload_current_scene()
+
+func _open_settings():
+    settings_return_to_pause = false
+    main_menu.visible = false
+    pause_menu.visible = false
+    settings_menu.visible = true
+
+func _open_settings_from_pause():
+    settings_return_to_pause = true
+    pause_menu.visible = false
+    settings_menu.visible = true
+
+func _close_settings():
+    settings_menu.visible = false
+    if game_started and settings_return_to_pause:
+        pause_menu.visible = true
+    elif game_started:
+        _resume_game()
+    else:
+        main_menu.visible = true
+
+func _set_sensitivity(value: float):
+    if player:
+        player.mouse_sensitivity = value
+
+func _set_fov(value: float):
+    if player and player.camera:
+        player.camera.fov = value
+
+func _set_crosshair_visible(value: bool):
+    if crosshair_label:
+        crosshair_label.visible = value
+
+func _show_controls():
+    var dialog = AcceptDialog.new()
+    dialog.title = "HOW TO PLAY"
+    dialog.dialog_text = "WASD: move     Mouse: aim     Left Click: fire\nR: reload     Shift: sprint     Space: jump\nEsc: pause or resume     Find loot to restore health, shield, and ammo.\nStay inside the glowing safe zone as it shrinks."
+    dialog.process_mode = Node.PROCESS_MODE_ALWAYS
+    menu_layer.add_child(dialog)
+    dialog.popup_centered(Vector2i(520, 250))
+
+func _quit_game():
+    get_tree().quit()
 
 func _make_box(label, pos, size, color, collision := true, yaw := 0.0):
     var body = StaticBody3D.new() if collision else Node3D.new()

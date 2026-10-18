@@ -1,16 +1,17 @@
 extends Node
-## Free non-Steam multiplayer connection foundation for Panda Royale.
-## This handles ENet session creation only; gameplay replication must be added separately.
+## Free ENet multiplayer connection and basic player-state replication.
 
 signal status_changed(message: String)
 signal peer_connected(peer_id: int)
 signal peer_disconnected(peer_id: int)
+signal player_state_received(peer_id: int, world_position: Vector3, yaw: float)
 
 const DEFAULT_PORT := 24560
 const MAX_CLIENTS := 4
 
 var peer: ENetMultiplayerPeer
 var last_status := "Offline"
+var _publish_timer := 0.0
 
 func _ready() -> void:
     multiplayer.peer_connected.connect(_on_peer_connected)
@@ -57,6 +58,29 @@ func close_session() -> void:
 func is_host() -> bool:
     return multiplayer.multiplayer_peer != null and multiplayer.is_server()
 
+func publish_player_state(world_position: Vector3, yaw: float) -> void:
+    if multiplayer.multiplayer_peer == null:
+        return
+    _publish_timer += get_process_delta_time()
+    if _publish_timer < 0.05:
+        return
+    _publish_timer = 0.0
+    if multiplayer.is_server():
+        rpc("receive_player_state", multiplayer.get_unique_id(), world_position, yaw)
+    else:
+        rpc_id(1, "submit_player_state", world_position, yaw)
+
+@rpc("any_peer", "unreliable")
+func submit_player_state(world_position: Vector3, yaw: float) -> void:
+    if not multiplayer.is_server():
+        return
+    var sender_id := multiplayer.get_remote_sender_id()
+    rpc("receive_player_state", sender_id, world_position, yaw)
+
+@rpc("authority", "call_remote", "unreliable")
+func receive_player_state(peer_id: int, world_position: Vector3, yaw: float) -> void:
+    player_state_received.emit(peer_id, world_position, yaw)
+
 func _on_peer_connected(id: int) -> void:
     peer_connected.emit(id)
     _set_status("Player %d connected." % id)
@@ -66,7 +90,7 @@ func _on_peer_disconnected(id: int) -> void:
     _set_status("Player %d disconnected." % id)
 
 func _on_connected_to_server() -> void:
-    _set_status("Connected to host. Gameplay sync is not implemented yet.")
+    _set_status("Connected to host. Syncing player movement.")
 
 func _on_connection_failed() -> void:
     _set_status("Connection failed. Check the address, port forwarding, and firewall.")

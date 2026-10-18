@@ -35,11 +35,12 @@ func _try_initialize_steam() -> void:
         return
 
     # GodotSteam versions expose slightly different initialization methods.
+    var init_result: Variant = null
     if steam.has_method("steamInitEx"):
-        var init_result = steam.call("steamInitEx")
+        init_result = steam.call("steamInitEx")
         steam_initialized = _steam_init_succeeded(init_result)
     elif steam.has_method("steamInit"):
-        var init_result = steam.call("steamInit")
+        init_result = steam.call("steamInit")
         steam_initialized = _steam_init_succeeded(init_result)
     else:
         _set_status("GodotSteam loaded, but its initialization API is not recognized.")

@@ -40,3 +40,17 @@ Bug reports, ideas, and improvements are welcome. Please open an issue or pull r
 ## License
 
 No license is specified in this README. Unless a license is added to the repository, reuse and redistribution permissions may be limited.
+
+## Steam In-Game Invites (Integration Preview)
+
+Panda Royale now has an optional Steam invite bridge. When the party lobby is open, it adds an INVITE VIA STEAM button beside the host controls. With a compatible GodotSteam GDExtension installed and initialized, the button creates a friends-only Steam lobby and opens the Steam overlay invite dialog.
+
+**Important:** this is not plug-and-play until the native GodotSteam extension is installed for the exact Godot 4.7 build and a valid Steamworks App ID is configured. The repository does not bundle the native extension, and the game's current ENet multiplayer transport is still separate from Steam lobby membership. Steam invitations alone do not yet route players into the same network match.
+
+Setup checklist:
+1. Install and configure a GodotSteam GDExtension build compatible with the project's Godot 4.7 version and target Windows architecture.
+2. Configure your own Steamworks App ID once you have Steamworks partner access. The 480 Spacewar ID in the script is for development/testing only, not a production game ID.
+3. Launch Steam first, then launch Panda Royale through Steam (or the configured test app), and verify the Steam overlay is enabled.
+4. Test creating a lobby and inviting a friend. A full production integration still needs Steam lobby join callbacks wired into the game's session/match flow and a Steam-capable networking transport (or a reachable ENet host).
+
+Without GodotSteam installed, Panda Royale should still launch normally; the optional Steam button will report that Steam support needs setup.

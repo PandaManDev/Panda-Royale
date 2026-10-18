@@ -30,9 +30,12 @@ var crosshair_label: Label
 var stats_label: Label
 var show_performance_stats := false
 var selected_mode := "SOLO"
+var remote_players: Dictionary = {}
 
 func _ready():
     randomize()
+    NetworkManager.player_state_received.connect(_on_remote_player_state)
+    NetworkManager.peer_disconnected.connect(_on_remote_peer_disconnected)
     _build_world()
     _build_zone_ring()
     _spawn_player()
@@ -42,6 +45,8 @@ func _ready():
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _process(delta):
+    if player and game_started and not paused and not match_over:
+        NetworkManager.publish_player_state(player.global_position, player.rotation.y)
     if match_over or not game_started or paused:
         return
     zone_timer += delta
@@ -152,6 +157,55 @@ func _build_zone_ring():
     zone_ring.material_override = mat
     zone_ring.position.y = 0.12
     add_child(zone_ring)
+
+func _on_remote_player_state(peer_id: int, world_position: Vector3, yaw: float) -> void:
+    if peer_id == multiplayer.get_unique_id():
+        return
+    var avatar: Node3D = remote_players.get(peer_id)
+    if not is_instance_valid(avatar):
+        avatar = _create_remote_avatar(peer_id)
+        remote_players[peer_id] = avatar
+    avatar.global_position = world_position
+    avatar.rotation.y = yaw
+
+func _on_remote_peer_disconnected(peer_id: int) -> void:
+    if remote_players.has(peer_id):
+        var avatar = remote_players[peer_id]
+        if is_instance_valid(avatar):
+            avatar.queue_free()
+        remote_players.erase(peer_id)
+
+func _create_remote_avatar(peer_id: int) -> Node3D:
+    var avatar = Node3D.new()
+    avatar.name = "RemotePlayer_%d" % peer_id
+    var body_mesh = MeshInstance3D.new()
+    var body = CapsuleMesh.new()
+    body.radius = 0.42
+    body.height = 1.8
+    body_mesh.mesh = body
+    body_mesh.position.y = 0.9
+    var body_material = StandardMaterial3D.new()
+    body_material.albedo_color = Color(0.20, 0.68, 1.0)
+    body_material.roughness = 0.72
+    body_mesh.material_override = body_material
+    avatar.add_child(body_mesh)
+    var head_mesh = MeshInstance3D.new()
+    var head = SphereMesh.new()
+    head.radius = 0.28
+    head.height = 0.56
+    head_mesh.mesh = head
+    head_mesh.position.y = 1.95
+    head_mesh.material_override = body_material
+    avatar.add_child(head_mesh)
+    var name_tag = Label3D.new()
+    name_tag.text = "PLAYER %d" % peer_id
+    name_tag.position.y = 2.35
+    name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    name_tag.font_size = 40
+    name_tag.pixel_size = 0.006
+    avatar.add_child(name_tag)
+    add_child(avatar)
+    return avatar
 
 func _spawn_player():
     player = CharacterBody3D.new()

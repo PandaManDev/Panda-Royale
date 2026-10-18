@@ -9,18 +9,9 @@ var steam_available := false
 var steam_initialized := false
 var lobby_id: int = 0
 var status := "Steam integration is not installed."
-var _injected_buttons: Dictionary = {}
-var _status_labels: Dictionary = {}
-var _scan_timer := 0.0
 
 func _ready() -> void:
     _try_initialize_steam()
-
-func _process(delta: float) -> void:
-    _scan_timer += delta
-    if _scan_timer >= 0.35:
-        _scan_timer = 0.0
-        _inject_party_controls()
 
 func _try_initialize_steam() -> void:
     if not Engine.has_singleton("Steam"):
@@ -108,47 +99,7 @@ func _on_lobby_join_requested(lobby: Variant, _friend: Variant = 0) -> void:
         steam.call("joinLobby", requested_lobby_id)
         _set_status("Accepted Steam invite %d. Lobby joining is requested, but gameplay networking still needs connecting." % requested_lobby_id)
 
-func _inject_party_controls() -> void:
-    var scene := get_tree().current_scene
-    if scene == null:
-        return
-    for node in scene.find_children("*", "Button", true, false):
-        var host_button := node as Button
-        if host_button == null or host_button.text != "HOST PARTY":
-            continue
-        var parent := host_button.get_parent()
-        if parent == null:
-            continue
-        var key := str(parent.get_instance_id())
-        if not _injected_buttons.has(key) or not is_instance_valid(_injected_buttons[key]):
-            var steam_button := Button.new()
-            steam_button.name = "SteamInviteButton"
-            steam_button.text = "INVITE VIA STEAM"
-            steam_button.tooltip_text = "Requires the GodotSteam extension and Steam setup."
-            steam_button.custom_minimum_size = Vector2(360, 48)
-            steam_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-            steam_button.pressed.connect(create_lobby_and_invite)
-            parent.add_child(steam_button)
-            _injected_buttons[key] = steam_button
-        if not _status_labels.has(key) or not is_instance_valid(_status_labels[key]):
-            var status_label := Label.new()
-            status_label.name = "SteamInviteStatus"
-            status_label.text = status
-            status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-            status_label.custom_minimum_size = Vector2(580, 36)
-            status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-            status_label.add_theme_font_size_override("font_size", 12)
-            status_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.42))
-            parent.add_child(status_label)
-            _status_labels[key] = status_label
-
 func _set_status(message: String) -> void:
     status = message
-    for key in _status_labels.keys():
-        var label = _status_labels[key]
-        if is_instance_valid(label):
-            label.text = message
-        else:
-            _status_labels.erase(key)
     status_changed.emit(message)
     print("[SteamManager] ", message)

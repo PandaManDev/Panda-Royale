@@ -43,7 +43,7 @@ No license is specified in this README. Unless a license is added to the reposit
 
 ## Steam In-Game Invites (Integration Preview)
 
-Panda Royale now has an optional Steam invite bridge. When the party lobby is open, it adds an INVITE VIA STEAM button beside the host controls. With a compatible GodotSteam GDExtension installed and initialized, the button creates a friends-only Steam lobby and opens the Steam overlay invite dialog.
+Panda Royale now has an optional Steam invite bridge. When the party lobby is open, the party UI creates an INVITE VIA STEAM button with a direct click handler and displays Steam status/errors in the lobby. With a compatible GodotSteam GDExtension installed and initialized, the button creates a friends-only Steam lobby and opens the Steam overlay invite dialog.
 
 **Important:** this is not plug-and-play until the native GodotSteam extension is installed for the exact Godot 4.7 build and a valid Steamworks App ID is configured. The repository does not bundle the native extension, and the game's current ENet multiplayer transport is still separate from Steam lobby membership. Steam invitations alone do not yet route players into the same network match.
 

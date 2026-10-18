@@ -173,7 +173,8 @@ func _spawn_bots(count: int):
     for i in range(26):
         var pickup = Area3D.new()
         pickup.set_script(PICKUP_SCRIPT)
-        pickup.position = Vector3(_random_point(82).x, 0.9, _random_point(82).z)
+        var loot_point = _random_point(82)
+        pickup.position = Vector3(loot_point.x, 0.9, loot_point.z)
         add_child(pickup)
         pickup.game = self
 
@@ -238,7 +239,7 @@ func _build_hud():
     hud.add_child(cross)
 
     var controls = Label.new()
-    controls.text = "WASD Move   •   Mouse Aim   •   LMB Fire   •   R Reload   •   Shift Sprint   •   Space Jump   •   Esc Unlock Mouse"
+    controls.text = "WASD Move   •   Mouse Aim   •   LMB Fire   •   R Reload   •   Shift Sprint   •   Space Jump   •   B Build   •   Esc Pause"
     controls.position = Vector2(330, 674)
     controls.add_theme_font_size_override("font_size", 14)
     controls.add_theme_color_override("font_color", Color(0.78,0.84,0.89))
@@ -248,7 +249,7 @@ func _update_hud():
     if not player:
         return
     health_label.text = "♥  %d HP     ◆  %d SHIELD" % [int(player.health), int(player.shield)]
-    ammo_label.text = "AMMO  %02d / %03d" % [player.ammo, player.reserve_ammo]
+    ammo_label.text = "AMMO  %02d / %03d     WOOD  %03d%s" % [player.ammo, player.reserve_ammo, player.wood, "  •  BUILD MODE: CLICK TO PLACE" if player.build_mode else "  •  B TO BUILD"]
     alive_label.text = "ALIVE  %02d" % (bots.size() + (1 if player.health > 0 else 0))
     zone_label.text = "SAFE ZONE  %d m" % int(safe_radius)
     if zone_timer < 18:

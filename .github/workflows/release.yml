@@ -1,0 +1,54 @@
+name: Build and publish Windows EXE
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Export Panda Royale for Windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Godot and export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.0
+          use-dotnet: false
+
+      - name: Verify Godot installation
+        run: godot --version
+
+      - name: Import project assets
+        run: godot --headless --editor --path . --quit
+
+      - name: Export Windows executable
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-release "Windows Desktop" build/PandaRoyale.exe
+
+      - name: Ensure executable was created
+        run: test -s build/PandaRoyale.exe
+
+      - name: Upload EXE as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PandaRoyale-Windows-${{ github.ref_name }}
+          path: build/PandaRoyale.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release and attach EXE
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Panda Royale ${{ github.ref_name }}
+          generate_release_notes: true
+          files: build/PandaRoyale.exe

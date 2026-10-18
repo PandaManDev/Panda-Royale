@@ -23,17 +23,20 @@ func _try_initialize_steam() -> void:
         _set_status("GodotSteam was detected but the Steam API could not be loaded.")
         return
     var init_result: Variant = null
+    # App ID 480 is Valve's Spacewar test app. Replace it with Panda Royale's
+    # own Steamworks App ID before publishing. GDExtension builds commonly use
+    # steamInitEx(app_id, retrieve_stats); older builds may expose steamInit.
     if steam.has_method("steamInitEx"):
-        init_result = steam.call("steamInitEx")
+        init_result = steam.call("steamInitEx", 480, true)
         steam_initialized = _steam_init_succeeded(init_result)
     elif steam.has_method("steamInit"):
-        init_result = steam.call("steamInit")
+        init_result = steam.call("steamInit", true, 480)
         steam_initialized = _steam_init_succeeded(init_result)
     else:
         _set_status("The installed GodotSteam version has no recognized init method.")
         return
     if not steam_initialized:
-        _set_status("Steam initialization failed. Open Steam and check the app ID/setup.")
+        _set_status("Steam initialization failed. Check that Steam is running, steam_appid.txt contains 480 for local testing, and the installed GodotSteam API matches this project.")
         return
     if steam.has_signal("lobby_created") and not steam.is_connected("lobby_created", _on_lobby_created):
         steam.connect("lobby_created", _on_lobby_created)

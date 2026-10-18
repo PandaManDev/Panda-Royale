@@ -1,0 +1,60 @@
+name: Build Panda Royale for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**.gd'
+      - '**.tscn'
+      - '**.tres'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - '.github/workflows/build-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.4.1 and Windows export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          GODOT_VERSION="4.4.1"
+          mkdir -p "$RUNNER_TEMP/godot" "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          curl -fL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot/godot.zip" -d "$RUNNER_TEMP/godot"
+          curl -fL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o "$RUNNER_TEMP/godot/templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot/templates.tpz" -d "$RUNNER_TEMP/godot/templates"
+          cp -a "$RUNNER_TEMP/godot/templates/templates/." "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+          GODOT_BIN="$(find "$RUNNER_TEMP/godot" -maxdepth 1 -type f -name 'Godot_v*linux.x86_64' | head -n 1)"
+          chmod +x "$GODOT_BIN"
+          ln -sf "$GODOT_BIN" "$RUNNER_TEMP/godot/godot"
+          echo "GODOT_BIN=$RUNNER_TEMP/godot/godot" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/godot/godot" --version
+
+      - name: Import project and check scripts
+        run: |
+          "$GODOT_BIN" --headless --editor --path . --quit
+
+      - name: Export Windows executable
+        run: |
+          mkdir -p build
+          "$GODOT_BIN" --headless --path . --export-release "Windows Desktop" build/PandaRoyale.exe
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PandaRoyale-Windows
+          path: |
+            build/PandaRoyale.exe
+            build/PandaRoyale.pck
+          if-no-files-found: error
+          retention-days: 14

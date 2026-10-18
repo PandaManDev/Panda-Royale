@@ -688,6 +688,35 @@ func _show_party_preview():
     )
     outer.add_child(host_button)
 
+    # Build the Steam invite control directly in the party UI so it always has
+    # a real pressed handler; don't rely on runtime button injection.
+    var steam_invite_button = Button.new()
+    steam_invite_button.name = "SteamInviteButton"
+    steam_invite_button.text = "INVITE VIA STEAM"
+    steam_invite_button.tooltip_text = "Requires the GodotSteam extension and Steam setup."
+    steam_invite_button.custom_minimum_size = Vector2(360, 48)
+    steam_invite_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    steam_invite_button.pressed.connect(func():
+        status.text = "Checking Steam invite support..."
+        if has_node("/root/SteamManager"):
+            SteamManager.create_lobby_and_invite()
+            status.text = SteamManager.status
+        else:
+            status.text = "Steam invite support isn't loaded. Check the SteamManager autoload."
+    )
+    outer.add_child(steam_invite_button)
+
+    var steam_status_callback = func(message: String):
+        if is_instance_valid(status):
+            status.text = message
+    if SteamManager.status_changed.is_connected(steam_status_callback):
+        SteamManager.status_changed.disconnect(steam_status_callback)
+    SteamManager.status_changed.connect(steam_status_callback)
+    panel.tree_exited.connect(func():
+        if SteamManager.status_changed.is_connected(steam_status_callback):
+            SteamManager.status_changed.disconnect(steam_status_callback)
+    )
+
     _menu_label(outer, "JOIN A FRIEND", 16, Color(0.78, 0.91, 1.0), true)
     var address_input = LineEdit.new()
     address_input.placeholder_text = "Friend's IP address or hostname"

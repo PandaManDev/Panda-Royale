@@ -3,8 +3,12 @@ extends CharacterBody3D
 var game
 var health := 100.0
 var shield := 50.0
-var ammo := 30
-var reserve_ammo := 150
+var ammo := 0
+var reserve_ammo := 0
+var has_weapon := false
+var weapon_name := "Unarmed"
+var xp := 0
+var level := 1
 var wood := 100
 var build_mode := false
 var move_speed := 7.5
@@ -47,6 +51,7 @@ func _ready():
     mat.metallic = 0.72
     mat.roughness = 0.3
     weapon.material_override = mat
+    weapon.visible = false
     weapon.position = Vector3(0.34, -0.28, -0.62)
     camera.add_child(weapon)
 
@@ -59,6 +64,7 @@ func _ready():
     barrel.rotation.x = PI/2
     barrel.position = Vector3(0.34, -0.25, -1.05)
     barrel.material_override = mat
+    barrel.visible = false
     camera.add_child(barrel)
 
     muzzle_flash = OmniLight3D.new()
@@ -86,6 +92,9 @@ func _unhandled_input(event):
             reload_weapon()
         elif event.keycode == KEY_B:
             build_mode = not build_mode
+        elif event.keycode == KEY_E:
+            if is_instance_valid(game):
+                game.try_open_chest(self)
 
 func _physics_process(delta):
     if not is_instance_valid(game) or not game.game_started or game.paused or game.match_over:
@@ -120,6 +129,8 @@ func _physics_process(delta):
     move_and_slide()
 
 func fire():
+    if not has_weapon:
+        return
     if fire_cooldown > 0 or reload_time > 0 or ammo <= 0 or health <= 0:
         if ammo <= 0:
             reload_weapon()
@@ -146,7 +157,7 @@ func fire():
             game.damage_bot(hit, 34.0)
 
 func reload_weapon():
-    if reload_time <= 0 and ammo < 30 and reserve_ammo > 0:
+    if has_weapon and reload_time <= 0 and ammo < 30 and reserve_ammo > 0:
         reload_time = 1.35
 
 func take_damage(amount: float, bypass_shield := false):
@@ -166,3 +177,12 @@ func add_loot(kind: String):
             shield = min(100.0, shield + 30.0)
         "ammo":
             reserve_ammo += 45
+        "weapon":
+            has_weapon = true
+            weapon_name = "Ranger Rifle"
+            ammo = max(ammo, 30)
+            reserve_ammo += 60
+            weapon.visible = true
+            for child in camera.get_children():
+                if child is MeshInstance3D and child != weapon:
+                    child.visible = true

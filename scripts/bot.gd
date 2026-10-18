@@ -44,7 +44,36 @@ func _ready():
     headmat.albedo_color = Color(0.72,0.59,0.46)
     head_mesh.material_override = headmat
     head_mesh.position.y = 2.02
+    head_mesh.scale = Vector3(0.95, 1.05, 0.95)
     add_child(head_mesh)
+    var accent = StandardMaterial3D.new()
+    accent.albedo_color = mat.albedo_color.lightened(0.22)
+    var dark = StandardMaterial3D.new()
+    dark.albedo_color = Color(0.075, 0.085, 0.10)
+    for side in [-1.0, 1.0]:
+        var arm = MeshInstance3D.new()
+        var arm_mesh = CapsuleMesh.new()
+        arm_mesh.radius = 0.14
+        arm_mesh.height = 0.86
+        arm.mesh = arm_mesh
+        arm.material_override = accent
+        arm.position = Vector3(side * 0.43, 1.05, 0)
+        add_child(arm)
+        var leg = MeshInstance3D.new()
+        var leg_mesh = CapsuleMesh.new()
+        leg_mesh.radius = 0.17
+        leg_mesh.height = 0.82
+        leg.mesh = leg_mesh
+        leg.material_override = dark
+        leg.position = Vector3(side * 0.19, 0.42, 0)
+        add_child(leg)
+        var boot = MeshInstance3D.new()
+        var boot_mesh = BoxMesh.new()
+        boot_mesh.size = Vector3(0.32, 0.18, 0.43)
+        boot.mesh = boot_mesh
+        boot.material_override = dark
+        boot.position = Vector3(side * 0.19, 0.11, -0.08)
+        add_child(boot)
 
     # dark tactical vest
     var vest = MeshInstance3D.new()

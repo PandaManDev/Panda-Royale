@@ -77,7 +77,7 @@ func submit_player_state(world_position: Vector3, yaw: float) -> void:
     var sender_id := multiplayer.get_remote_sender_id()
     rpc("receive_player_state", sender_id, world_position, yaw)
 
-@rpc("authority", "call_remote", "unreliable")
+@rpc("authority", "call_local", "unreliable")
 func receive_player_state(peer_id: int, world_position: Vector3, yaw: float) -> void:
     player_state_received.emit(peer_id, world_position, yaw)
 

@@ -6,7 +6,7 @@ var bob_time := 0.0
 var mesh_node: MeshInstance3D
 
 func _ready():
-    var choices = ["health","shield","ammo"]
+    var choices = ["health","shield","ammo","weapon"]
     kind = choices[randi() % choices.size()]
     var shape = SphereShape3D.new()
     shape.radius = 1.35
@@ -27,6 +27,12 @@ func _ready():
         mat.albedo_color = Color(0.12,0.55,1.0)
         mat.emission_enabled = true
         mat.emission = Color(0.02,0.18,0.5)
+    elif kind == "weapon":
+        mesh.size = Vector3(0.35,0.25,1.1)
+        mat.albedo_color = Color(0.20,0.23,0.27)
+        mat.metallic = 0.65
+        mat.emission_enabled = true
+        mat.emission = Color(0.10,0.28,0.55)
     else:
         mat.albedo_color = Color(1.0,0.68,0.12)
         mat.emission_enabled = true
@@ -35,7 +41,7 @@ func _ready():
     add_child(mesh_node)
 
     var label = Label3D.new()
-    label.text = kind.to_upper()
+    label.text = "RANGER RIFLE" if kind == "weapon" else kind.to_upper()
     label.font_size = 48
     label.pixel_size = 0.005
     label.position.y = 0.8

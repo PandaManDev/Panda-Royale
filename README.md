@@ -50,6 +50,22 @@ Friend codes currently package the host address and ENet port; they are not shor
 Steam is not required for this flow.
 
 
+## Multiplayer stability improvements
+
+The ENet connection layer now initializes and clears its rolling 60-second anti-cheat strike history for each peer, alongside the existing movement validation. The party panel also provides a **DISCONNECT / RESET** action and re-enables host/join controls after reported connection failures so players can retry without restarting the game.
+
+These are connection and stability improvements only. The current network layer still synchronizes basic player movement; it does not yet make weapons, damage, inventory, loot, storm timing, or match results authoritative on the host. Internet hosting may require UDP port 24560 forwarding and firewall permission. Test with two separate game instances on a local network before relying on internet play.
+
+## Planned development phases
+
+1. **Multiplayer foundation:** stable host/join/retry flow, peer lifecycle, spawn synchronization, and LAN testing.
+2. **Shared match state:** host-authoritative health, weapon fire, ammo, pickups, eliminations, storm and end-of-match results.
+3. **Battle royale gameplay:** inventory and weapon swapping, improved bot behavior, named locations, and a clear drop-to-victory match loop.
+4. **Progression and presentation:** cosmetics, saved challenges, match recap, audio, and richer lobby feedback.
+5. **Performance and release quality:** Low/Balanced/High rendering profiles, startup/build smoke tests, packaged launcher validation, and hardware testing.
+
+The phases are a roadmap, not a claim that the listed future work is already implemented. Online multiplayer and release packaging still require successful builds and hands-on testing.
+
 ## Anti-cheat baseline
 
 The ENet host validates client movement snapshots before relaying them: it rejects non-finite coordinates, checks movement speed and world bounds, limits update frequency, logs strikes, and disconnects a peer after repeated violations. This is an early server-side sanity layer intended to make basic teleport/speed exploits harder.

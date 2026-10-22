@@ -32,6 +32,9 @@ jobs:
       - name: Import project assets
         run: godot --headless --editor --path . --quit
 
+      - name: Smoke-test the main scene
+        run: godot --headless --path . --quit-after 10
+
       - name: Export Windows executable
         run: |
           mkdir -p build

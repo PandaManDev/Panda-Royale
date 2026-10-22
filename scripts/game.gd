@@ -52,6 +52,7 @@ func _initialize_game():
     NetworkManager.player_state_received.connect(_on_remote_player_state)
     NetworkManager.peer_disconnected.connect(_on_remote_peer_disconnected)
     _build_world()
+    _apply_performance_preset(performance_preset, false)
     _build_zone_ring()
     _spawn_player()
     _spawn_bots(12)

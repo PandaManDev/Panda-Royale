@@ -109,3 +109,20 @@ The Windows launcher includes a **SYSTEM REQUIREMENTS** button to view these pro
 The launcher checks the PC before allowing the game to be installed or launched. It currently blocks those actions if the system is not Windows 10/11, has fewer than 2 logical CPU cores, has less than 4 GB detected physical RAM, or has less than 1 GB free in the per-user install location. The System Requirements window shows detected values and whether these checks pass.
 
 The launcher itself is not blocked from opening, because users need it to see the failure message and system details. This check cannot reliably determine GPU/OpenGL compatibility using only the lightweight built-in Windows APIs, so graphics support is disclosed as a separate requirement rather than falsely claiming it has been verified. These requirements are provisional and should be revised after hardware testing.
+
+
+## Implemented prototype improvements
+
+- **Main menu:** the game script builds an in-game menu with Play, Solo/Duos mode selection, Settings, party-code preview, controls, and Quit. Duos is explicitly a local preview and is not a complete online duo queue.
+- **Performance presets:** Settings provides Low, Balanced, and High presets. The Low preset disables glow and fog and turns off MSAA; Balanced uses 2x MSAA; High uses 4x MSAA and a higher FPS cap. These presets are early settings, not hardware-detection-based recommendations.
+- **Local progression:** XP and levels are awarded for bot eliminations. The local daily challenge tracks up to five rival eliminations and resets by system date. Settings and daily challenge progress are saved in the local Godot user profile; this is not an account-backed or server-verified progression system.
+- **Loot prototype:** the island spawns chests and pickups for weapons, ammo, health, and shields. These are local prototype interactions, not yet authoritative multiplayer loot.
+- **Storm and match end:** the safe zone shrinks, players take damage outside it, and the local match displays victory or elimination when its current conditions are met.
+
+## Known incomplete work
+
+- The black-screen report still requires a Godot editor/headless run and Windows build validation. The startup fallback screen is not proof that the underlying scene error is fixed.
+- The launcher does not yet perform a full version-aware patch/update and file-hash repair workflow. Its current install path is a download/install helper, not a complete updater.
+- Online party codes currently connect directly over ENet. There is no matchmaking, relay, or real party service.
+- Combat, health, loot, storm, and match results are not fully server-authoritative. The current prototype should not be considered secure against cheating in online play.
+- These changes have not been validated in a live multiplayer session or benchmarked across hardware.

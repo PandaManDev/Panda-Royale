@@ -29,6 +29,7 @@ var settings_return_to_pause := false
 var crosshair_label: Label
 var stats_label: Label
 var show_performance_stats := false
+var hud_update_timer := 0.0
 var selected_mode := "SOLO"
 var remote_players: Dictionary = {}
 
@@ -59,7 +60,11 @@ func _process(delta):
         var dist = Vector2(player.global_position.x, player.global_position.z).length()
         if dist > safe_radius:
             player.take_damage(7.0 * delta, false)
-        _update_hud()
+        # HUD text changes at 10 Hz instead of rebuilding every rendered frame.
+        hud_update_timer += delta
+        if hud_update_timer >= 0.1:
+            hud_update_timer = 0.0
+            _update_hud()
     bots = bots.filter(func(b): return is_instance_valid(b) and b.health > 0)
     if bots.size() == 0 and not match_over:
         _finish_match(true)

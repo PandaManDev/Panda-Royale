@@ -81,5 +81,5 @@ func _process(delta):
 
 func _on_body_entered(body):
     if body and body.has_method("add_loot"):
-        body.add_loot(kind)
+        body.add_loot(kind, rarity)
         queue_free()

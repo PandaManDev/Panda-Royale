@@ -83,7 +83,7 @@ jobs:
 
       - name: Build launcher executable
         run: |
-          python -m pip install --upgrade pip pyinstaller
+          python -m pip install --upgrade pip pyinstaller pypresence
           python -m PyInstaller --onedir --noconsole launcher/launcher.py --name PandaRoyaleLauncher
 
       - name: Assemble launcher package

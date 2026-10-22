@@ -7,6 +7,9 @@ var ammo := 0
 var reserve_ammo := 0
 var has_weapon := false
 var weapon_name := "Unarmed"
+var weapon_rarity := "COMMON"
+var weapon_damage := 34.0
+var weapon_fire_interval := 0.105
 var xp := 0
 var level := 1
 var wood := 100
@@ -136,7 +139,7 @@ func fire():
             reload_weapon()
         return
     ammo -= 1
-    fire_cooldown = 0.105
+    fire_cooldown = weapon_fire_interval
     muzzle_flash.light_energy = 4.5
     weapon.position.z = -0.50
     var tween = create_tween()
@@ -150,11 +153,11 @@ func fire():
     if result:
         var hit = result.collider
         if hit and hit.get_parent() and hit.get_parent().has_method("receive_damage"):
-            hit.get_parent().receive_damage(34.0)
+            hit.get_parent().receive_damage(weapon_damage)
         elif hit.has_method("receive_damage"):
-            hit.receive_damage(34.0)
+            hit.receive_damage(weapon_damage)
         elif hit is CharacterBody3D and hit != self and hit.has_meta("bot"):
-            game.damage_bot(hit, 34.0)
+            game.damage_bot(hit, weapon_damage)
 
 func reload_weapon():
     if has_weapon and reload_time <= 0 and ammo < 30 and reserve_ammo > 0:
@@ -169,19 +172,35 @@ func take_damage(amount: float, bypass_shield := false):
     if health < 0:
         health = 0
 
-func add_loot(kind: String):
+func add_loot(kind: String, rarity: String = "COMMON"):
+    var loot_scale := 1.0
+    match rarity:
+        "RARE":
+            loot_scale = 1.25
+        "EPIC":
+            loot_scale = 1.6
+        "LEGENDARY":
+            loot_scale = 2.0
     match kind:
         "health":
-            health = min(100.0, health + 30.0)
+            health = min(100.0, health + 30.0 * loot_scale)
         "shield":
-            shield = min(100.0, shield + 30.0)
+            shield = min(100.0, shield + 30.0 * loot_scale)
         "ammo":
-            reserve_ammo += 45
+            reserve_ammo += int(round(45.0 * loot_scale))
         "weapon":
+            var damage_by_rarity := {"COMMON": 34.0, "RARE": 39.0, "EPIC": 45.0, "LEGENDARY": 52.0}
+            var interval_by_rarity := {"COMMON": 0.105, "RARE": 0.10, "EPIC": 0.095, "LEGENDARY": 0.09}
+            # A higher-tier rifle replaces a lower-tier rifle, never downgrades it.
+            var rarity_rank := {"COMMON": 0, "RARE": 1, "EPIC": 2, "LEGENDARY": 3}
+            if not has_weapon or int(rarity_rank.get(rarity, 0)) >= int(rarity_rank.get(weapon_rarity, 0)):
+                weapon_rarity = rarity
+                weapon_damage = float(damage_by_rarity.get(rarity, 34.0))
+                weapon_fire_interval = float(interval_by_rarity.get(rarity, 0.105))
+                weapon_name = "%s Ranger Rifle" % rarity.capitalize()
             has_weapon = true
-            weapon_name = "Ranger Rifle"
             ammo = max(ammo, 30)
-            reserve_ammo += 60
+            reserve_ammo += int(round(60.0 * loot_scale))
             weapon.visible = true
             for child in camera.get_children():
                 if child is MeshInstance3D and child != weapon:

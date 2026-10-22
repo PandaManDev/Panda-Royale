@@ -76,3 +76,29 @@ The launcher checks its own folder and common per-user/system install paths for 
 ## Add Panda Royale to Steam (non-Steam shortcut)
 
 You can add the Windows game to your personal Steam Library without publishing it on Steam or paying a Steam Direct fee. First install Panda Royale, then open the launcher and click **ADD TO STEAM**. The launcher copies the detected `PandaRoyale.exe` path and opens Steam. In Steam, choose **Games → Add a Non-Steam Game to My Library**, select **Browse**, choose `PandaRoyale.exe`, and add it. You can rename the shortcut and customise its artwork from your Steam Library. This is a local shortcut only; it does not upload or publish Panda Royale to Steam. Steam must be installed for the Steam Library step.
+
+
+## System requirements (provisional estimates)
+
+These are preliminary targets for the current Godot 4.7 prototype, not verified minimum specifications. The game is still under development and performance may change between builds.
+
+### Minimum target
+
+- **OS:** Windows 10 or Windows 11, 64-bit
+- **CPU:** 2-core processor around 2.0 GHz
+- **Memory:** 4 GB RAM
+- **Graphics:** GPU/driver supporting OpenGL 3.3 or the Godot GL Compatibility renderer
+- **Storage:** At least 1 GB free space for the game; updates may require additional space
+- **Network:** Internet connection for online play
+
+### Recommended target
+
+- **OS:** Windows 10 or Windows 11, 64-bit
+- **CPU:** 4-core processor
+- **Memory:** 8 GB RAM or more
+- **Graphics:** Dedicated graphics card or recent integrated graphics
+- **Storage:** At least 2 GB free space
+
+**Important:** These figures are estimates and have not been validated through a broad hardware benchmark. Actual performance depends on the build, resolution, graphics settings, drivers, background applications, and the state of game optimization. Requirements will be updated after testing on a range of PCs.
+
+The Windows launcher includes a **SYSTEM REQUIREMENTS** button to view these provisional targets before starting the game.

@@ -412,18 +412,19 @@ func _build_menus():
 
     var backdrop = ColorRect.new()
     backdrop.name = "MenuBackdrop"
-    backdrop.color = Color(0.008, 0.014, 0.032, 0.91)
+    backdrop.color = Color(0.006, 0.010, 0.026, 0.94)
     backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
     menu_layer.add_child(backdrop)
 
-    main_menu = _create_menu_panel("MainMenu", Vector2(560, 620))
+    main_menu = _create_menu_panel("MainMenu", Vector2(600, 660))
     menu_layer.add_child(main_menu)
     var main_box = _menu_box(main_menu)
-    _menu_label(main_box, "PANDA ROYALE", 38, Color(0.78, 0.91, 1.0), true)
-    _menu_label(main_box, "DROP IN. LOOT UP. BE THE LAST PANDA STANDING.", 12, Color(0.68, 0.76, 0.86), false)
+    _menu_label(main_box, "P A N D A   R O Y A L E", 34, Color(0.86, 0.91, 1.0), true)
+    _menu_label(main_box, "THE ISLAND IS YOURS TO CONQUER", 12, Color(0.50, 0.70, 0.95), true)
+    _menu_label(main_box, "DROP IN  /  LOOT UP  /  OUTLAST EVERYONE", 12, Color(0.68, 0.76, 0.86), true)
     _menu_spacer(main_box, 8)
-    _menu_label(main_box, "SEASON ZERO  •  ISLAND TEST BUILD", 13, Color(0.35, 0.82, 1.0), true)
+    _menu_label(main_box, "SEASON 00     •     EARLY ACCESS BUILD", 12, Color(0.64, 0.47, 1.0), true)
     _menu_spacer(main_box, 14)
     var mode_picker = OptionButton.new()
     mode_picker.add_item("SOLO")
@@ -431,12 +432,12 @@ func _build_menus():
     mode_picker.item_selected.connect(func(index): selected_mode = "DUOS" if index == 1 else "SOLO")
     main_box.add_child(mode_picker)
     _menu_button(main_box, "PLAY", _start_match, true)
-    _menu_button(main_box, "PARTY / INVITE FRIENDS", _show_party_preview, false)
+    _menu_button(main_box, "FRIENDS  /  PARTY CODES", _show_party_preview, false)
     _menu_button(main_box, "SETTINGS", _open_settings, false)
     _menu_button(main_box, "HOW TO PLAY", _show_controls, false)
     _menu_button(main_box, "QUIT GAME", _quit_game, false)
     _menu_spacer(main_box, 8)
-    _menu_label(main_box, "WASD MOVE  •  SHIFT SPRINT  •  SPACE JUMP  •  MOUSE AIM", 11, Color(0.63, 0.70, 0.78), false)
+    _menu_label(main_box, "WASD MOVE   •   SHIFT SPRINT   •   SPACE JUMP", 11, Color(0.50, 0.58, 0.70), true)
 
     pause_menu = _create_menu_panel("PauseMenu", Vector2(480, 420))
     menu_layer.add_child(pause_menu)
@@ -528,10 +529,11 @@ func _create_menu_panel(panel_name: String, panel_size: Vector2) -> PanelContain
 
 func _panel_style() -> StyleBoxFlat:
     var style = StyleBoxFlat.new()
-    style.bg_color = Color(0.018, 0.032, 0.060, 0.985)
-    style.border_color = Color(0.18, 0.72, 1.0, 0.95)
-    style.set_border_width_all(2)
-    style.set_corner_radius_all(18)
+    style.bg_color = Color(0.018, 0.025, 0.052, 0.985)
+    style.border_color = Color(0.39, 0.31, 0.90, 0.95)
+    style.set_border_width_all(1)
+    style.border_width_left = 3
+    style.set_corner_radius_all(16)
     style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
     style.shadow_size = 18
     style.shadow_offset = Vector2(0, 8)
@@ -565,22 +567,23 @@ func _menu_spacer(parent: Node, pixels: float):
 func _menu_button(parent: Node, label_text: String, action: Callable, primary: bool):
     var button = Button.new()
     button.text = label_text
-    button.custom_minimum_size = Vector2(360, 48)
+    button.custom_minimum_size = Vector2(390, 48)
     button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    button.add_theme_font_size_override("font_size", 16)
+    button.add_theme_font_size_override("font_size", 15)
+    button.add_theme_color_override("font_hover_color", Color(1.0, 0.98, 1.0))
     button.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
     var normal = StyleBoxFlat.new()
-    normal.bg_color = Color(0.035, 0.38, 0.68, 1.0) if primary else Color(0.055, 0.095, 0.16, 1.0)
-    normal.border_color = Color(0.20, 0.78, 1.0, 1.0) if primary else Color(0.20, 0.36, 0.52, 1.0)
+    normal.bg_color = Color(0.30, 0.20, 0.78, 1.0) if primary else Color(0.045, 0.065, 0.12, 1.0)
+    normal.border_color = Color(0.64, 0.52, 1.0, 1.0) if primary else Color(0.20, 0.23, 0.38, 1.0)
     normal.set_border_width_all(1)
     normal.set_corner_radius_all(11)
     normal.content_margin_top = 8
     normal.content_margin_bottom = 8
     var hover = normal.duplicate()
-    hover.bg_color = Color(0.06, 0.56, 0.90, 1.0) if primary else Color(0.10, 0.21, 0.34, 1.0)
-    hover.border_color = Color(0.45, 0.88, 1.0, 1.0)
+    hover.bg_color = Color(0.43, 0.30, 0.96, 1.0) if primary else Color(0.10, 0.10, 0.22, 1.0)
+    hover.border_color = Color(0.73, 0.66, 1.0, 1.0)
     var pressed = hover.duplicate()
-    pressed.bg_color = Color(0.025, 0.28, 0.48, 1.0)
+    pressed.bg_color = Color(0.20, 0.13, 0.55, 1.0)
     var focus = hover.duplicate()
     focus.set_border_width_all(2)
     button.add_theme_stylebox_override("normal", normal)

@@ -36,6 +36,12 @@ var remote_players: Dictionary = {}
 
 func _ready():
     randomize()
+    # Build a visible fallback immediately so a failed world/menu setup never
+    # leaves the player staring at an empty clear-color window.
+    _build_boot_screen()
+    call_deferred("_initialize_game")
+
+func _initialize_game():
     NetworkManager.player_state_received.connect(_on_remote_player_state)
     NetworkManager.peer_disconnected.connect(_on_remote_peer_disconnected)
     _build_world()
@@ -45,6 +51,63 @@ func _ready():
     _build_hud()
     _build_menus()
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+    if is_instance_valid(boot_layer):
+        boot_layer.queue_free()
+
+var boot_layer: Control
+
+func _build_boot_screen():
+    boot_layer = Control.new()
+    boot_layer.name = "BootScreen"
+    boot_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    boot_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+    add_child(boot_layer)
+
+    var background = ColorRect.new()
+    background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    background.color = Color(0.018, 0.012, 0.055, 1.0)
+    boot_layer.add_child(background)
+
+    var center = VBoxContainer.new()
+    center.anchor_left = 0.5
+    center.anchor_top = 0.5
+    center.anchor_right = 0.5
+    center.anchor_bottom = 0.5
+    center.offset_left = -300
+    center.offset_top = -125
+    center.offset_right = 300
+    center.offset_bottom = 125
+    center.alignment = BoxContainer.ALIGNMENT_CENTER
+    center.add_theme_constant_override("separation", 18)
+    boot_layer.add_child(center)
+
+    var title = Label.new()
+    title.text = "PANDA ROYALE"
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 42)
+    title.add_theme_color_override("font_color", Color(0.86, 0.55, 1.0))
+    center.add_child(title)
+
+    var subtitle = Label.new()
+    subtitle.text = "DROP IN  •  LOOT UP  •  BE THE LAST"
+    subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    subtitle.add_theme_font_size_override("font_size", 15)
+    subtitle.add_theme_color_override("font_color", Color(0.70, 0.84, 1.0))
+    center.add_child(subtitle)
+
+    var progress = ProgressBar.new()
+    progress.custom_minimum_size = Vector2(420, 18)
+    progress.max_value = 100
+    progress.value = 35
+    progress.show_percentage = false
+    center.add_child(progress)
+
+    var status = Label.new()
+    status.text = "PREPARING YOUR ISLAND..."
+    status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    status.add_theme_font_size_override("font_size", 14)
+    status.add_theme_color_override("font_color", Color(0.40, 0.90, 1.0))
+    center.add_child(status)
 
 func _process(delta):
     # Smooth remote avatars between the 20 Hz network snapshots to reduce

@@ -39,10 +39,17 @@ var challenge_progress := 0
 var challenge_goal := 5
 var challenge_date := ""
 var profile_path := "user://panda_profile.cfg"
+var crash_marker_path := "user://last_run_incomplete.flag"
+var previous_run_crashed := false
 
 func _ready():
     randomize()
     _load_local_profile()
+    previous_run_crashed = FileAccess.file_exists(crash_marker_path)
+    var marker = FileAccess.open(crash_marker_path, FileAccess.WRITE)
+    if marker:
+        marker.store_string("Panda Royale session started: %s" % Time.get_datetime_string_from_system())
+        marker.close()
     # Build a visible fallback immediately so a failed world/menu setup never
     # leaves the player staring at an empty clear-color window.
     _build_boot_screen()
@@ -61,8 +68,34 @@ func _initialize_game():
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
     if is_instance_valid(boot_layer):
         boot_layer.queue_free()
+    if previous_run_crashed:
+        call_deferred("_show_crash_support_window")
 
 var boot_layer: Control
+
+func _open_bug_report():
+    var title = "Panda Royale bug report"
+    var body = "## What happened?\nDescribe the bug here.\n\n## Steps to reproduce\n1.\n2.\n3.\n\n## Expected result\n\n## Actual result\n\n## Game details\n- Version: early access\n- Platform: %s\n- Renderer: %s\n- FPS: %d\n- Mode: %s\n- Eliminations: %d\n" % [OS.get_name(), str(ProjectSettings.get_setting("rendering/renderer/rendering_method", "unknown")), Engine.get_frames_per_second(), selected_mode, eliminations]
+    var url = "https://github.com/PandaManDev/Panda-Royale/issues/new?title=%s&body=%s" % [title.uri_encode(), body.uri_encode()]
+    OS.shell_open(url)
+
+func _show_crash_support_window():
+    var dialog = AcceptDialog.new()
+    dialog.title = "Panda Royale — Crash Recovery"
+    dialog.dialog_text = "Panda Royale appears to have closed unexpectedly during the previous session. No crash details can be guaranteed by the game engine. You can open a pre-filled GitHub bug report to tell us what happened."
+    dialog.ok_button_text = "CLOSE"
+    dialog.add_cancel_button("SUBMIT REPORT")
+    dialog.confirmed.connect(func():
+        FileAccess.open(crash_marker_path, FileAccess.WRITE).close()
+    )
+    dialog.canceled.connect(func():
+        _open_bug_report()
+        var clear_file = FileAccess.open(crash_marker_path, FileAccess.WRITE)
+        if clear_file:
+            clear_file.close()
+    )
+    add_child(dialog)
+    dialog.popup_centered(Vector2i(620, 260))
 
 func _build_boot_screen():
     boot_layer = Control.new()
@@ -517,6 +550,7 @@ func _build_menus():
     _menu_button(main_box, "FRIENDS  /  PARTY CODES", _show_party_preview, false)
     _menu_button(main_box, "SETTINGS", _open_settings, false)
     _menu_button(main_box, "HOW TO PLAY", _show_controls, false)
+    _menu_button(main_box, "REPORT A BUG", _open_bug_report, false)
     _menu_button(main_box, "QUIT GAME", _quit_game, false)
     _menu_spacer(main_box, 8)
     _menu_label(main_box, "WASD MOVE   •   SHIFT SPRINT   •   SPACE JUMP", 11, Color(0.50, 0.58, 0.70), true)
@@ -1038,6 +1072,8 @@ func _show_controls():
     dialog.popup_centered(Vector2i(520, 250))
 
 func _quit_game():
+    if FileAccess.file_exists(crash_marker_path):
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(crash_marker_path))
     get_tree().quit()
 
 func _make_box(label, pos, size, color, collision := true, yaw := 0.0):

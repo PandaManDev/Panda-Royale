@@ -29,8 +29,15 @@ jobs:
       - name: Verify Godot installation
         run: godot --version
 
-      - name: Import project assets
-        run: godot --headless --editor --path . --quit
+      - name: Import project assets and fail on script errors
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --editor --path . --quit 2>&1 | tee godot-import.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Compile Error:|Failed to load script' godot-import.log; then
+            echo 'Godot reported script errors during project import.' >&2
+            exit 1
+          fi
 
       - name: Parse critical GDScript files
         run: |
@@ -39,8 +46,15 @@ jobs:
           # with project autoloads registered and fails the job on compile errors.
           godot --headless --path . --check-only --script res://scripts/network_manager.gd
 
-      - name: Smoke-test the main scene
-        run: godot --headless --path . --quit-after 10
+      - name: Smoke-test the main scene and fail on script errors
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 10 2>&1 | tee godot-smoke.log
+          if grep -E 'SCRIPT ERROR:|Parse Error:|Compile Error:|Failed to load script' godot-smoke.log; then
+            echo 'Godot reported script errors during the main-scene smoke test.' >&2
+            exit 1
+          fi
 
       - name: Export Windows executable
         run: |

@@ -2,12 +2,16 @@ import os
 import subprocess
 import sys
 import threading
-import tkinter as tk
+import urllib.request
+import webbrowser
 from pathlib import Path
+import tkinter as tk
 from tkinter import messagebox
 
 APP_NAME = "PANDA ROYALE"
 GAME_EXE = "PandaRoyale.exe"
+GAME_DOWNLOAD_URL = "https://github.com/PandaManDev/Panda-Royale/releases/latest/download/PandaRoyale.exe"
+RELEASES_URL = "https://github.com/PandaManDev/Panda-Royale/releases/latest"
 BG = "#090b14"
 PANEL = "#111626"
 PURPLE = "#8b5cf6"
@@ -16,85 +20,204 @@ TEXT = "#f4f5ff"
 MUTED = "#9aa4bd"
 
 
-def app_folder() -> Path:
-    # PyInstaller one-file launchers live beside the game, not in the temp extraction folder.
+def launcher_folder() -> Path:
     return Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+
+
+def install_folder() -> Path:
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(base) / "PandaRoyale"
+
+
+def find_installed_game() -> Path | None:
+    # Prefer the launcher package folder, then the standard per-user install folder,
+    # then a few common locations. No manual browse/scan step is required.
+    candidates = [
+        launcher_folder() / GAME_EXE,
+        install_folder() / GAME_EXE,
+        Path.home() / "Games" / "PandaRoyale" / GAME_EXE,
+        Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Panda Royale" / GAME_EXE,
+        Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Panda Royale" / GAME_EXE,
+    ]
+    for candidate in candidates:
+        try:
+            if candidate.is_file() and candidate.stat().st_size > 1024 * 1024:
+                return candidate
+        except OSError:
+            pass
+    return None
 
 
 class Launcher:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Panda Royale Launcher")
-        self.root.geometry("760x480")
-        self.root.minsize(680, 440)
+        self.root.geometry("760x500")
+        self.root.minsize(680, 460)
         self.root.configure(bg=BG)
         self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
         self.game_process = None
         self.dots = 0
+        self.download_active = False
+        self.game_path = None
         self._build_ui()
         self.root.after(250, self._startup_check)
         self.root.after(450, self._animate)
 
     def _build_ui(self):
         header = tk.Frame(self.root, bg=BG)
-        header.pack(fill="x", padx=34, pady=(26, 8))
+        header.pack(fill="x", padx=34, pady=(24, 6))
         tk.Label(header, text="PANDA", font=("Segoe UI", 13, "bold"), fg=CYAN, bg=BG).pack(anchor="w")
         tk.Label(header, text="ROYALE", font=("Segoe UI Black", 32, "bold"), fg=TEXT, bg=BG).pack(anchor="w")
-        tk.Label(header, text="DROP IN. GEAR UP. BE THE LAST ONE STANDING.", font=("Segoe UI", 9, "bold"), fg=MUTED, bg=BG).pack(anchor="w", pady=(1, 0))
+        tk.Label(header, text="DROP IN. GEAR UP. BE THE LAST ONE STANDING.", font=("Segoe UI", 9, "bold"), fg=MUTED, bg=BG).pack(anchor="w")
 
         card = tk.Frame(self.root, bg=PANEL, highlightbackground="#292345", highlightthickness=1)
-        card.pack(fill="both", expand=True, padx=34, pady=(18, 18))
+        card.pack(fill="both", expand=True, padx=34, pady=(15, 18))
         self.status_title = tk.Label(card, text="LAUNCHING PANDA ROYALE", font=("Segoe UI", 16, "bold"), fg=TEXT, bg=PANEL)
-        self.status_title.pack(anchor="w", padx=24, pady=(24, 5))
-        self.status_detail = tk.Label(card, text="Preparing your game...", font=("Segoe UI", 10), fg=MUTED, bg=PANEL)
+        self.status_title.pack(anchor="w", padx=24, pady=(22, 5))
+        self.status_detail = tk.Label(card, text="Checking for an installed game...", font=("Segoe UI", 10), fg=MUTED, bg=PANEL, wraplength=620, justify="left")
         self.status_detail.pack(anchor="w", padx=24)
         self.progress = tk.Canvas(card, height=5, bg="#252b3d", highlightthickness=0)
-        self.progress.pack(fill="x", padx=24, pady=(22, 18))
+        self.progress.pack(fill="x", padx=24, pady=(20, 16))
         self.bar = self.progress.create_rectangle(0, 0, 0, 5, fill=PURPLE, width=0)
-        self.news = tk.Label(card, text="STATUS  •  Checking local game files", font=("Segoe UI", 9, "bold"), fg=CYAN, bg=PANEL)
-        self.news.pack(anchor="w", padx=24, pady=(0, 18))
+        self.news = tk.Label(card, text="STATUS  •  Auto-detecting game installation", font=("Segoe UI", 9, "bold"), fg=CYAN, bg=PANEL)
+        self.news.pack(anchor="w", padx=24, pady=(0, 16))
 
         buttons = tk.Frame(card, bg=PANEL)
-        buttons.pack(fill="x", padx=24, pady=(0, 22), side="bottom")
+        buttons.pack(fill="x", padx=24, pady=(0, 20), side="bottom")
         self.play_button = tk.Button(buttons, text="PLAY NOW", command=self.launch_game, font=("Segoe UI", 11, "bold"), bg=PURPLE, fg="white", activebackground="#7441d8", activeforeground="white", relief="flat", padx=26, pady=12, cursor="hand2", state="disabled")
         self.play_button.pack(side="left")
-        self.recheck_button = tk.Button(buttons, text="CHECK FILES", command=self._startup_check, font=("Segoe UI", 10, "bold"), bg="#252b3d", fg=TEXT, activebackground="#343c54", activeforeground=TEXT, relief="flat", padx=18, pady=12, cursor="hand2")
-        self.recheck_button.pack(side="left", padx=(10, 0))
+        self.install_button = tk.Button(buttons, text="INSTALL / REPAIR GAME", command=self.install_game, font=("Segoe UI", 10, "bold"), bg="#252b3d", fg=TEXT, activebackground="#343c54", activeforeground=TEXT, relief="flat", padx=18, pady=12, cursor="hand2")
+        self.install_button.pack(side="left", padx=(10, 0))
         tk.Label(buttons, text="EARLY ACCESS  •  WINDOWS", font=("Segoe UI", 8, "bold"), fg=MUTED, bg=PANEL).pack(side="right", anchor="s")
 
     def _animate(self):
         self.dots = (self.dots + 1) % 4
-        if not self.play_button["state"] == "normal":
-            self.status_title.configure(text="WAITING FOR GAME" + "." * self.dots)
-            self.progress.update_idletasks()
-            width = max(1, self.progress.winfo_width())
-            x = (self.dots + 1) * width / 5
-            self.progress.coords(self.bar, max(0, x - width * 0.18), 0, min(width, x + width * 0.18), 5)
+        if self.download_active:
+            self.status_title.configure(text="DOWNLOADING GAME" + "." * self.dots)
+        elif self.game_path is None:
+            self.status_title.configure(text="CHECKING GAME" + "." * self.dots)
         self.root.after(450, self._animate)
 
     def _startup_check(self):
-        game = app_folder() / GAME_EXE
-        if game.is_file():
+        if self.download_active:
+            return
+        self.status_detail.configure(text="Looking in the launcher folder and common Panda Royale install locations...")
+        self.root.update_idletasks()
+        self.game_path = find_installed_game()
+        if self.game_path:
             self.status_title.configure(text="READY TO DROP IN")
-            self.status_detail.configure(text="Panda Royale is installed and ready to launch.")
-            self.news.configure(text="STATUS  •  Game executable found", fg=CYAN)
+            self.status_detail.configure(text=f"Panda Royale was detected automatically.\\nInstalled at: {self.game_path}")
+            self.news.configure(text="STATUS  •  Game installed and ready", fg=CYAN)
             self.progress.coords(self.bar, 0, 0, max(1, self.progress.winfo_width()), 5)
             self.play_button.configure(state="normal")
+            self.install_button.configure(text="REINSTALL / REPAIR")
         else:
-            self.status_title.configure(text="WAITING FOR GAME FILES")
-            self.status_detail.configure(text=f"Place {GAME_EXE} in this same folder as the launcher.")
-            self.news.configure(text="STATUS  •  Game executable missing", fg="#ff7b91")
+            self.status_title.configure(text="GAME NOT INSTALLED")
+            self.status_detail.configure(text="Panda Royale wasn't found on this PC. Please install the game. The launcher can download and install it for you.")
+            self.news.configure(text="STATUS  •  Installation required", fg="#ffb454")
             self.play_button.configure(state="disabled")
-            messagebox.showwarning("Panda Royale files missing", f"Could not find {GAME_EXE}.\n\nKeep the launcher and game executable together, then select CHECK FILES.")
+            self.install_button.configure(text="DOWNLOAD & INSTALL")
+            self.root.after(350, self._missing_game_prompt)
+
+    def _missing_game_prompt(self):
+        if self.game_path or self.download_active or not self.root.winfo_exists():
+            return
+        answer = messagebox.askyesno(
+            "Panda Royale is not installed",
+            "Panda Royale could not be detected on this PC.\\n\\nWould you like the launcher to download and install it now?\\n\\nThe game will be saved in your local AppData folder."
+        )
+        if answer:
+            self.install_game()
+        else:
+            self.status_detail.configure(text="Game not installed. Select DOWNLOAD & INSTALL whenever you're ready.")
+            self.news.configure(text="STATUS  •  Waiting for installation", fg="#ffb454")
+
+    def install_game(self):
+        if self.download_active:
+            return
+        if not messagebox.askyesno(
+            "Install Panda Royale",
+            "The launcher will download the latest Windows game build from the official Panda Royale GitHub Releases and install it for your Windows user. Continue?"
+        ):
+            return
+        self.download_active = True
+        self.play_button.configure(state="disabled")
+        self.install_button.configure(state="disabled")
+        self.status_detail.configure(text="Downloading the latest game build. Keep the launcher open...")
+        self.news.configure(text="STATUS  •  Connecting to official release download", fg=CYAN)
+        threading.Thread(target=self._download_worker, daemon=True).start()
+
+    def _download_worker(self):
+        target_dir = install_folder()
+        temp_path = target_dir / (GAME_EXE + ".download")
+        final_path = target_dir / GAME_EXE
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            request = urllib.request.Request(GAME_DOWNLOAD_URL, headers={"User-Agent": "PandaRoyaleLauncher/1.0"})
+            with urllib.request.urlopen(request, timeout=30) as response, open(temp_path, "wb") as output:
+                total = int(response.headers.get("Content-Length", "0") or "0")
+                downloaded = 0
+                while True:
+                    chunk = response.read(1024 * 256)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    downloaded += len(chunk)
+                    if total > 0:
+                        percent = min(100, int(downloaded * 100 / total))
+                        self.root.after(0, lambda p=percent: self._set_download_progress(p))
+            if temp_path.stat().st_size < 1024 * 1024:
+                raise RuntimeError("The downloaded file is too small to be a valid game executable. A Windows build may not be published yet.")
+            temp_path.replace(final_path)
+            self.root.after(0, lambda p=final_path: self._download_success(p))
+        except Exception as exc:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            self.root.after(0, lambda error=str(exc): self._download_failed(error))
+
+    def _set_download_progress(self, percent):
+        width = max(1, self.progress.winfo_width())
+        self.progress.coords(self.bar, 0, 0, width * percent / 100, 5)
+        self.news.configure(text=f"STATUS  •  Downloading game: {percent}%", fg=CYAN)
+
+    def _download_success(self, path):
+        self.download_active = False
+        self.game_path = path
+        self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
+        self.play_button.configure(state="normal")
+        self.status_title.configure(text="INSTALLATION COMPLETE")
+        self.status_detail.configure(text=f"Panda Royale is installed and ready.\\nLocation: {path}")
+        self.news.configure(text="STATUS  •  Game downloaded successfully", fg=CYAN)
+        self.progress.coords(self.bar, 0, 0, max(1, self.progress.winfo_width()), 5)
+        if messagebox.askyesno("Panda Royale installed", "Panda Royale is installed! Would you like to launch it now?"):
+            self.launch_game()
+
+    def _download_failed(self, error):
+        self.download_active = False
+        self.install_button.configure(state="normal", text="OPEN DOWNLOAD PAGE")
+        self.install_button.configure(command=self.open_download_page)
+        self.status_title.configure(text="DOWNLOAD UNAVAILABLE")
+        self.status_detail.configure(text="The launcher couldn't download a game build. The latest release may not contain a Windows executable yet, or your connection may be blocking it.")
+        self.news.configure(text="STATUS  •  Download failed", fg="#ff7b91")
+        if messagebox.askyesno("Could not download Panda Royale", f"Automatic installation failed.\\n\\nDetails: {error}\\n\\nWould you like to open the official releases page to download it manually?"):
+            self.open_download_page()
+
+    def open_download_page(self):
+        webbrowser.open(RELEASES_URL)
 
     def launch_game(self):
-        game = app_folder() / GAME_EXE
-        if not game.is_file():
+        game = self.game_path or find_installed_game()
+        if not game:
+            self.game_path = None
             self._startup_check()
             return
         try:
+            self.game_path = game
             self.status_title.configure(text="LAUNCHING GAME...")
-            self.status_detail.configure(text="Starting Panda Royale. This window can stay open.")
+            self.status_detail.configure(text="Starting Panda Royale. This launcher can stay open.")
             self.news.configure(text="STATUS  •  Launch request sent", fg=CYAN)
             self.game_process = subprocess.Popen([str(game)], cwd=str(game.parent))
             self.status_title.configure(text="GAME LAUNCHED")
@@ -103,7 +226,7 @@ class Launcher:
         except OSError as exc:
             messagebox.showerror("Could not launch Panda Royale", str(exc))
             self.status_title.configure(text="LAUNCH FAILED")
-            self.status_detail.configure(text="Check that the game executable is present and valid.")
+            self.status_detail.configure(text="The detected game could not be started. Try reinstalling it.")
             self.news.configure(text="STATUS  •  Launch failed", fg="#ff7b91")
 
 

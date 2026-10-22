@@ -5,6 +5,7 @@ import sys
 import threading
 import urllib.request
 import webbrowser
+import urllib.parse
 import ctypes
 from ctypes import wintypes
 from pathlib import Path
@@ -169,6 +170,8 @@ class Launcher:
         self.steam_button.pack(side="left", padx=(10, 0))
         self.requirements_button = tk.Button(buttons, text="SYSTEM REQUIREMENTS", command=self.show_requirements, font=("Segoe UI", 9, "bold"), bg="#292345", fg=TEXT, activebackground="#3c3263", activeforeground=TEXT, relief="flat", padx=12, pady=12, cursor="hand2")
         self.requirements_button.pack(side="left", padx=(10, 0))
+        self.bug_button = tk.Button(buttons, text="REPORT A BUG", command=self.open_bug_report, font=("Segoe UI", 9, "bold"), bg="#45243f", fg=TEXT, activebackground="#673455", activeforeground=TEXT, relief="flat", padx=12, pady=12, cursor="hand2")
+        self.bug_button.pack(side="left", padx=(10, 0))
         tk.Label(buttons, text="EARLY ACCESS  •  WINDOWS", font=("Segoe UI", 8, "bold"), fg=MUTED, bg=PANEL).pack(side="right", anchor="s")
 
     def _check_minimum_requirements(self):
@@ -312,6 +315,25 @@ class Launcher:
         if messagebox.askyesno("Could not download Panda Royale", f"Automatic installation failed.\n\nDetails: {error}\n\nWould you like to open the official releases page to download it manually?"):
             self.open_download_page()
 
+    def open_bug_report(self, title="Panda Royale bug report", details=""):
+        body = (
+            "## What happened?\\nDescribe the bug here.\\n\\n"
+            "## Steps to reproduce\\n1.\\n2.\\n3.\\n\\n"
+            "## Expected result\\n\\n## Actual result\\n\\n"
+            "## System details\\n"
+            f"- Launcher: Windows\\n- OS: {sys.platform}\\n"
+            f"- Python: {sys.version.split()[0]}\\n"
+            f"- Game path: {self.game_path or 'not detected'}\\n"
+            f"- Additional details: {details or 'not provided'}\\n"
+        )
+        url = "https://github.com/PandaManDev/Panda-Royale/issues/new?" + urllib.parse.urlencode({"title": title, "body": body})
+        try:
+            webbrowser.open(url)
+            self.status_detail.configure(text="Opened a pre-filled GitHub bug report in your browser. Review it and click Submit new issue on GitHub.")
+            self.news.configure(text="STATUS  •  Bug report opened in browser", fg=CYAN)
+        except Exception as exc:
+            messagebox.showerror("Could not open bug report", f"Open this page manually:\\nhttps://github.com/PandaManDev/Panda-Royale/issues/new\\n\\n{exc}")
+
     def _check_game_startup(self):
         process = self.game_process
         if process is None:
@@ -321,6 +343,8 @@ class Launcher:
             self.status_title.configure(text="GAME CLOSED DURING STARTUP")
             self.status_detail.configure(text=f"Panda Royale exited before it finished starting (exit code {code}). The black window may indicate a game startup error. Try reinstalling the latest build.")
             self.news.configure(text="STATUS  •  Game did not stay open", fg="#ff7b91")
+            if code != 0 and messagebox.askyesno("Panda Royale closed unexpectedly", f"The game exited with code {code}. Would you like to open a pre-filled GitHub crash report?"):
+                self.open_bug_report("Panda Royale crash / unexpected exit", f"Game exited during startup with code {code}")
             self.play_button.configure(state="normal")
             self.install_button.configure(state="normal")
             self.install_button.configure(text="REINSTALL / REPAIR", command=self.install_game)

@@ -93,6 +93,16 @@ func _build_world():
     env.ambient_light_color = Color(0.58, 0.65, 0.72)
     env.ambient_light_energy = 0.7
     env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+    env.tonemap_exposure = 1.08
+    env.ambient_light_energy = 0.78
+    env.reflected_light_source = Environment.REFLECTION_SOURCE_BG
+    env.glow_enabled = true
+    env.glow_intensity = 0.22
+    env.glow_strength = 0.65
+    env.glow_bloom = 0.08
+    env.fog_enabled = true
+    env.fog_light_color = Color(0.43, 0.58, 0.68)
+    env.fog_density = 0.0018
     world_env = WorldEnvironment.new()
     world_env.environment = env
     add_child(world_env)
@@ -384,7 +394,7 @@ func _build_menus():
 
     var backdrop = ColorRect.new()
     backdrop.name = "MenuBackdrop"
-    backdrop.color = Color(0.015, 0.025, 0.05, 0.82)
+    backdrop.color = Color(0.008, 0.014, 0.032, 0.91)
     backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
     menu_layer.add_child(backdrop)
@@ -500,10 +510,13 @@ func _create_menu_panel(panel_name: String, panel_size: Vector2) -> PanelContain
 
 func _panel_style() -> StyleBoxFlat:
     var style = StyleBoxFlat.new()
-    style.bg_color = Color(0.035, 0.055, 0.09, 0.97)
-    style.border_color = Color(0.20, 0.65, 0.95, 0.95)
+    style.bg_color = Color(0.018, 0.032, 0.060, 0.985)
+    style.border_color = Color(0.18, 0.72, 1.0, 0.95)
     style.set_border_width_all(2)
-    style.set_corner_radius_all(12)
+    style.set_corner_radius_all(18)
+    style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
+    style.shadow_size = 18
+    style.shadow_offset = Vector2(0, 8)
     style.content_margin_left = 26
     style.content_margin_right = 26
     style.content_margin_top = 22
@@ -539,15 +552,23 @@ func _menu_button(parent: Node, label_text: String, action: Callable, primary: b
     button.add_theme_font_size_override("font_size", 16)
     button.add_theme_color_override("font_color", Color(0.96, 0.98, 1.0))
     var normal = StyleBoxFlat.new()
-    normal.bg_color = Color(0.06, 0.42, 0.68, 1.0) if primary else Color(0.10, 0.15, 0.22, 1.0)
-    normal.border_color = Color(0.22, 0.78, 1.0, 1.0) if primary else Color(0.25, 0.36, 0.48, 1.0)
+    normal.bg_color = Color(0.035, 0.38, 0.68, 1.0) if primary else Color(0.055, 0.095, 0.16, 1.0)
+    normal.border_color = Color(0.20, 0.78, 1.0, 1.0) if primary else Color(0.20, 0.36, 0.52, 1.0)
     normal.set_border_width_all(1)
-    normal.set_corner_radius_all(7)
+    normal.set_corner_radius_all(11)
+    normal.content_margin_top = 8
+    normal.content_margin_bottom = 8
     var hover = normal.duplicate()
-    hover.bg_color = Color(0.08, 0.56, 0.84, 1.0) if primary else Color(0.16, 0.25, 0.36, 1.0)
+    hover.bg_color = Color(0.06, 0.56, 0.90, 1.0) if primary else Color(0.10, 0.21, 0.34, 1.0)
+    hover.border_color = Color(0.45, 0.88, 1.0, 1.0)
+    var pressed = hover.duplicate()
+    pressed.bg_color = Color(0.025, 0.28, 0.48, 1.0)
+    var focus = hover.duplicate()
+    focus.set_border_width_all(2)
     button.add_theme_stylebox_override("normal", normal)
     button.add_theme_stylebox_override("hover", hover)
-    button.add_theme_stylebox_override("pressed", hover)
+    button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_stylebox_override("focus", focus)
     button.pressed.connect(action)
     parent.add_child(button)
 

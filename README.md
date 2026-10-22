@@ -56,6 +56,8 @@ The ENet connection layer now initializes and clears its rolling 60-second anti-
 
 These are connection and stability improvements only. The current network layer still synchronizes basic player movement; it does not yet make weapons, damage, inventory, loot, storm timing, or match results authoritative on the host. Internet hosting may require UDP port 24560 forwarding and firewall permission. Test with two separate game instances on a local network before relying on internet play.
 
+The in-game HUD now shows live network status messages, and remote player avatars have emissive blue materials, a glowing floor ring, a purple shoulder accent, and a brief spawn glow to make teammates easier to identify. These presentation changes do not change the replication model: the network layer still synchronizes basic movement only. Weapons, damage, inventory, loot, storm timing, and match results are not yet host-authoritative. Internet hosting may require UDP port 24560 forwarding and firewall permission. Test with two separate game instances on a local network before relying on internet play.
+
 ## Planned development phases
 
 1. **Multiplayer foundation:** stable host/join/retry flow, peer lifecycle, spawn synchronization, and LAN testing.

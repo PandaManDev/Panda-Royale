@@ -141,3 +141,11 @@ Implementation notes:
 - Update detection requires a published GitHub Release with a PandaRoyale.exe asset. If no release asset exists, the launcher reports that the check is unavailable and does not change the installed game.
 - The launcher package currently keeps the launcher executable separate from the game executable. This change updates the game build, not the launcher binary itself.
 - Windows runtime behavior remains unverified until the packaged launcher is run on a Windows desktop.
+
+
+## CI failure follow-up — 2026-10-22
+
+- [x] Root cause identified from Windows Actions logs: a literal backslash-n sequence had been inserted between two Python statements in launcher/launcher.py, causing SyntaxError during python -m py_compile.
+- [x] Corrected the malformed line in commit 59ab7476faafbe4a05cbb0ac996b4f019b322fa4.
+- [ ] Re-run Windows launcher syntax validation and PyInstaller package build on the fix commit.
+- [ ] Confirm both the Godot export/release job and launcher package job complete successfully.

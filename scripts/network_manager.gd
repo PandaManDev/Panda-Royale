@@ -119,8 +119,8 @@ func _validate_player_state(peer_id: int, world_position: Vector3, yaw: float) -
     if _peer_last_position.has(peer_id):
         var previous: Vector3 = _peer_last_position[peer_id]
         var previous_time := float(_peer_last_state_time.get(peer_id, now))
-        var elapsed := max(0.0, now - previous_time)
-        var allowed_distance := MAX_MOVE_SPEED * elapsed + MOVE_ALLOWANCE
+        var elapsed: float = maxf(0.0, now - previous_time)
+        var allowed_distance: float = MAX_MOVE_SPEED * elapsed + MOVE_ALLOWANCE
         if world_position.distance_to(previous) > allowed_distance:
             _flag_peer(peer_id, "movement speed exceeded server limit")
             return false

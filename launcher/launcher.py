@@ -100,7 +100,7 @@ def requirements_failure_message(specs: dict) -> str:
         issues.append(f"• RAM: at least {MIN_RAM_GB} GB (detected {detected})")
     if specs["free_disk_gb"] < MIN_FREE_DISK_GB:
         issues.append(f"• Free storage: at least {MIN_FREE_DISK_GB} GB (detected {specs['free_disk_gb']:.1f} GB)")
-    return "\\n".join(issues)
+    return "\n".join(issues)
 
 
 def find_installed_game() -> Path | None:
@@ -134,6 +134,7 @@ class Launcher:
         self.dots = 0
         self.download_active = False
         self.game_path = None
+        self.requirements_ok = True
         self._build_ui()
         self.root.after(150, self._check_minimum_requirements)
         self.root.after(250, self._startup_check)
@@ -173,7 +174,8 @@ class Launcher:
     def _check_minimum_requirements(self):
         self.system_specs = get_system_specs()
         specs = self.system_specs
-        if specs["passed"]:
+        self.requirements_ok = bool(specs["passed"])
+        if self.requirements_ok:
             return
         self.play_button.configure(state="disabled")
         self.install_button.configure(state="disabled")
@@ -184,9 +186,9 @@ class Launcher:
         details = requirements_failure_message(specs)
         messagebox.showerror(
             "Panda Royale — Minimum Requirements Not Met",
-            "Panda Royale cannot be installed or launched on this PC yet.\\n\\n"
+            "Panda Royale cannot be installed or launched on this PC yet.\n\n"
             + details
-            + "\\n\\nThe launcher will remain available so you can view requirements and close it. "
+            + "\n\nThe launcher will remain available so you can view requirements and close it. "
               "Free up disk space or use a supported PC, then reopen the launcher. "
               "Graphics/OpenGL compatibility must be checked separately."
         )
@@ -200,14 +202,14 @@ class Launcher:
         self.root.after(450, self._animate)
 
     def _startup_check(self):
-        if self.download_active:
+        if self.download_active or not self.requirements_ok:
             return
         self.status_detail.configure(text="Looking in the launcher folder and common Panda Royale install locations...")
         self.root.update_idletasks()
         self.game_path = find_installed_game()
         if self.game_path:
             self.status_title.configure(text="READY TO DROP IN")
-            self.status_detail.configure(text=f"Panda Royale was detected automatically.\\nInstalled at: {self.game_path}")
+            self.status_detail.configure(text=f"Panda Royale was detected automatically.\nInstalled at: {self.game_path}")
             self.news.configure(text="STATUS  •  Game installed and ready", fg=CYAN)
             self.progress.coords(self.bar, 0, 0, max(1, self.progress.winfo_width()), 5)
             self.play_button.configure(state="normal")
@@ -225,7 +227,7 @@ class Launcher:
             return
         answer = messagebox.askyesno(
             "Panda Royale is not installed",
-            "Panda Royale could not be detected on this PC.\\n\\nWould you like the launcher to download and install it now?\\n\\nThe game will be saved in your local AppData folder."
+            "Panda Royale could not be detected on this PC.\n\nWould you like the launcher to download and install it now?\n\nThe game will be saved in your local AppData folder."
         )
         if answer:
             self.install_game()
@@ -235,8 +237,9 @@ class Launcher:
 
     def install_game(self):
         specs = get_system_specs()
-        if not specs["passed"]:
-            messagebox.showerror("Minimum requirements not met", "Panda Royale installation is blocked.\\n\\n" + requirements_failure_message(specs))
+        self.requirements_ok = bool(specs["passed"])
+        if not self.requirements_ok:
+            messagebox.showerror("Minimum requirements not met", "Panda Royale installation is blocked.\n\n" + requirements_failure_message(specs))
             return
         if self.download_active:
             return
@@ -293,7 +296,7 @@ class Launcher:
         self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
         self.play_button.configure(state="normal")
         self.status_title.configure(text="INSTALLATION COMPLETE")
-        self.status_detail.configure(text=f"Panda Royale is installed and ready.\\nLocation: {path}")
+        self.status_detail.configure(text=f"Panda Royale is installed and ready.\nLocation: {path}")
         self.news.configure(text="STATUS  •  Game downloaded successfully", fg=CYAN)
         self.progress.coords(self.bar, 0, 0, max(1, self.progress.winfo_width()), 5)
         if messagebox.askyesno("Panda Royale installed", "Panda Royale is installed! Would you like to launch it now?"):
@@ -306,7 +309,7 @@ class Launcher:
         self.status_title.configure(text="DOWNLOAD UNAVAILABLE")
         self.status_detail.configure(text="The launcher couldn't download a game build. The latest release may not contain a Windows executable yet, or your connection may be blocking it.")
         self.news.configure(text="STATUS  •  Download failed", fg="#ff7b91")
-        if messagebox.askyesno("Could not download Panda Royale", f"Automatic installation failed.\\n\\nDetails: {error}\\n\\nWould you like to open the official releases page to download it manually?"):
+        if messagebox.askyesno("Could not download Panda Royale", f"Automatic installation failed.\n\nDetails: {error}\n\nWould you like to open the official releases page to download it manually?"):
             self.open_download_page()
 
     def _check_game_startup(self):
@@ -366,8 +369,8 @@ class Launcher:
                 tk.Label(content, text="•  " + line, font=("Segoe UI", 9), fg=TEXT, bg=PANEL, wraplength=540, justify="left").pack(anchor="w", padx=22, pady=2)
 
         detected = (f"Detected on this PC: {specs['os_name']} • {specs['cpu_cores']} logical CPU cores • "
-                    f"{specs['ram_gb']:.1f} GB RAM • {specs['free_disk_gb']:.1f} GB free storage.\\n"
-                    f"Automatic check: {'PASS' if specs['passed'] else 'FAIL'}.\\n"
+                    f"{specs['ram_gb']:.1f} GB RAM • {specs['free_disk_gb']:.1f} GB free storage.\n"
+                    f"Automatic check: {'PASS' if specs['passed'] else 'FAIL'}.\n"
                     "Graphics/OpenGL support cannot be verified reliably by this check.")
         tk.Label(window, text=detected, font=("Segoe UI", 9, "bold"), fg=CYAN if specs["passed"] else "#ff7b91", bg=BG, wraplength=560, justify="left").pack(anchor="w", padx=26, pady=(0, 8))
         tk.Label(window, text="These are provisional estimates, not verified benchmarks. The launcher blocks play and game installation if Windows, CPU, RAM, or free-storage checks fail. Graphics/OpenGL compatibility must be checked separately.", font=("Segoe UI", 9), fg=MUTED, bg=BG, wraplength=560, justify="left").pack(anchor="w", padx=26, pady=(0, 12))
@@ -387,7 +390,7 @@ class Launcher:
             self.root.clipboard_append(str(game))
             self.root.update()
         except tk.TclError as exc:
-            messagebox.showerror("Could not copy game path", f"Copy this path manually instead:\\n\\n{game}\\n\\nDetails: {exc}")
+            messagebox.showerror("Could not copy game path", f"Copy this path manually instead:\n\n{game}\n\nDetails: {exc}")
             return
 
         try:
@@ -397,13 +400,13 @@ class Launcher:
 
         messagebox.showinfo(
             "Add Panda Royale to Steam",
-            "The game path has been copied to your clipboard.\\n\\n"
-            "In Steam:\\n"
-            "1. Open the Games menu (or click + Add a Game).\\n"
-            "2. Choose 'Add a Non-Steam Game to My Library'.\\n"
-            "3. Click Browse and select PandaRoyale.exe at this path:\\n\\n"
-            f"{game}\\n\\n"
-            "4. Add the selected program. You can rename it to Panda Royale in your Steam Library.\\n\\n"
+            "The game path has been copied to your clipboard.\n\n"
+            "In Steam:\n"
+            "1. Open the Games menu (or click + Add a Game).\n"
+            "2. Choose 'Add a Non-Steam Game to My Library'.\n"
+            "3. Click Browse and select PandaRoyale.exe at this path:\n\n"
+            f"{game}\n\n"
+            "4. Add the selected program. You can rename it to Panda Royale in your Steam Library.\n\n"
             "This adds a shortcut to your own Steam library; it does not publish the game on Steam."
         )
 
@@ -412,10 +415,11 @@ class Launcher:
 
     def launch_game(self):
         specs = get_system_specs()
-        if not specs["passed"]:
+        self.requirements_ok = bool(specs["passed"])
+        if not self.requirements_ok:
             self.play_button.configure(state="disabled")
             self.install_button.configure(state="disabled")
-            messagebox.showerror("Minimum requirements not met", "Panda Royale launch is blocked.\\n\\n" + requirements_failure_message(specs))
+            messagebox.showerror("Minimum requirements not met", "Panda Royale launch is blocked.\n\n" + requirements_failure_message(specs))
             return
         game = self.game_path or find_installed_game()
         if not game:

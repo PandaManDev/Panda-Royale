@@ -107,3 +107,14 @@ Next: inspect the workflow run triggered by commit `0e30ce7474efd2a0b4815c380e59
 - [ ] Confirm behavior when Discord starts after the game and when Discord is not installed/running.
 
 Design note: this is a per-user background companion, not a Windows Service Control Manager service. Windows services run in a separate session and are not appropriate for directly managing an interactive game window. The companion is detached, hidden, and only lives while the launched game process is alive.
+
+
+## Launcher log files — 2026-10-22
+
+- [x] Added rotating file logging for launcher and background companion diagnostics.
+- [x] Launcher log path: %LOCALAPPDATA%\\PandaRoyale\\logs\\launcher.log.
+- [x] Background companion log path: %LOCALAPPDATA%\\PandaRoyale\\logs\\background-service.log.
+- [x] Logs include timestamps, severity, process ID, game launch PID/path, download/install outcomes, Discord RPC retry failures, and companion shutdown.
+- [x] Log files rotate at approximately 1 MB with up to three backups per log; inability to create logs does not intentionally block game launch.
+- [ ] Verify Python syntax and Windows launcher package build in GitHub Actions.
+- [ ] Inspect actual logs on Windows after launch, Discord-unavailable retry, and game shutdown.

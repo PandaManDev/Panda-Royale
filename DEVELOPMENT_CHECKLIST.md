@@ -94,3 +94,16 @@ Next: inspect the Actions run triggered by commit `19b4d95895ccd7d3b196fda43f5d3
 - [ ] Launch the newly built Windows game on a desktop and verify the boot screen reaches the main menu.
 
 Next: inspect the workflow run triggered by commit `0e30ce7474efd2a0b4815c380e591ecdcb4c7c07`; fix any newly surfaced errors one by one and only mark them complete after the workflow confirms them.
+
+
+## Background launcher companion — 2026-10-22
+
+- [x] Added a detached background companion process when the launcher starts the game.
+- [x] Companion monitors the game PID and exits when the game exits; it does not install a privileged Windows service or require administrator rights.
+- [x] Companion retries Discord Rich Presence IPC while Discord is unavailable, and clears/closes RPC when the game ends.
+- [x] Launcher still starts the game if spawning the optional companion fails.
+- [ ] Verify launcher Python syntax and build the packaged launcher in GitHub Actions.
+- [ ] Test on Windows: launch game, close launcher window, verify game continues and Discord presence remains, then close game and confirm companion exits.
+- [ ] Confirm behavior when Discord starts after the game and when Discord is not installed/running.
+
+Design note: this is a per-user background companion, not a Windows Service Control Manager service. Windows services run in a separate session and are not appropriate for directly managing an interactive game window. The companion is detached, hidden, and only lives while the launched game process is alive.

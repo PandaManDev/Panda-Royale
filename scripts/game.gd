@@ -30,6 +30,7 @@ var crosshair_label: Label
 var stats_label: Label
 var show_performance_stats := false
 var hud_update_timer := 0.0
+var eliminations := 0
 var selected_mode := "SOLO"
 var remote_players: Dictionary = {}
 
@@ -345,7 +346,7 @@ func _update_hud():
         return
     health_label.text = "♥  %d HP     ◆  %d SHIELD" % [int(player.health), int(player.shield)]
     ammo_label.text = "%s   AMMO %02d / %03d   WOOD %03d%s" % [player.weapon_name, player.ammo, player.reserve_ammo, player.wood, "  •  BUILD MODE: CLICK TO PLACE" if player.build_mode else "  •  B TO BUILD"]
-    alive_label.text = "ALIVE  %02d   •   LVL %02d   •   XP %03d" % [bots.size() + (1 if player.health > 0 else 0), player.level, player.xp]
+    alive_label.text = "ALIVE %02d  •  KILLS %02d  •  LVL %02d  •  XP %03d" % [bots.size() + (1 if player.health > 0 else 0), eliminations, player.level, player.xp]
     zone_label.text = "SAFE ZONE  %d m  •  %s" % [int(safe_radius), selected_mode]
     if stats_label:
         stats_label.visible = show_performance_stats
@@ -388,6 +389,7 @@ func damage_bot(bot, amount):
     if is_instance_valid(bot):
         bot.health -= amount
         if bot.health <= 0:
+            eliminations += 1
             if is_instance_valid(player):
                 player.wood = min(200, player.wood + 20)
                 award_xp(50)

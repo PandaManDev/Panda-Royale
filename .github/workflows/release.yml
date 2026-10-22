@@ -32,6 +32,11 @@ jobs:
       - name: Import project assets
         run: godot --headless --editor --path . --quit
 
+      - name: Parse critical GDScript files
+        run: |
+          godot --headless --path . --check-only --script res://scripts/network_manager.gd
+          godot --headless --path . --check-only --script res://scripts/game.gd
+
       - name: Smoke-test the main scene
         run: godot --headless --path . --quit-after 10
 

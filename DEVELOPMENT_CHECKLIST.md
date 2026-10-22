@@ -82,3 +82,15 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 - [ ] Launch the newly built Windows executable and verify the boot screen transitions to the menu.
 
 Next: inspect the Actions run triggered by commit `19b4d95895ccd7d3b196fda43f5d309debefc627`. If the main-scene smoke test still reports a compile/runtime error, fix that error rather than weakening the check.
+
+
+## Two failed workflow runs — follow-up — 2026-10-22
+
+- [x] Inspected failed runs `39762266291` and `39762285391`; both failed at the parse-check stage.
+- [x] Identified additional real GDScript errors in `scripts/bot.gd`: untyped `sight_to`, untyped `can_see_player`, and inferred `chance` from a Variant-returning `clamp` call.
+- [x] Fixed those declarations with explicit `Vector3`/`bool`/`float` types and `clampf`.
+- [x] Updated CI to fail when import or main-scene smoke-test output contains script parse/compile/load errors; Godot's import command alone had returned success despite logging these errors.
+- [ ] Confirm the new Actions run passes import, script checks, main-scene smoke test, and Windows export.
+- [ ] Launch the newly built Windows game on a desktop and verify the boot screen reaches the main menu.
+
+Next: inspect the workflow run triggered by commit `0e30ce7474efd2a0b4815c380e591ecdcb4c7c07`; fix any newly surfaced errors one by one and only mark them complete after the workflow confirms them.

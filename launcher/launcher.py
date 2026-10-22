@@ -26,6 +26,87 @@ TEXT = "#f4f5ff"
 MUTED = "#9aa4bd"
 
 
+BACKGROUND_SERVICE_NAME = "Panda Royale Background Service"
+
+
+def _process_is_running(pid: int) -> bool:
+    if sys.platform != "win32":
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        # Access denied means the process exists; other errors usually mean it exited.
+        return ctypes.get_last_error() == 5
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def run_background_service(game_pid: int) -> int:
+    """Quiet companion process: keep Discord Rich Presence alive and watch the game process."""
+    client = None
+    app_id = os.environ.get("PANDA_ROYALE_DISCORD_APP_ID", "").strip() or DISCORD_APPLICATION_ID
+    next_rpc_attempt = 0.0
+    try:
+        while _process_is_running(game_pid):
+            now = time.monotonic()
+            if client is None and now >= next_rpc_attempt:
+                try:
+                    from pypresence import Presence
+                    client = Presence(app_id)
+                    client.connect()
+                    client.update(details="Playing Panda Royale", state="In the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")
+                except Exception:
+                    if client is not None:
+                        try:
+                            client.close()
+                        except Exception:
+                            pass
+                    client = None
+                    next_rpc_attempt = now + 10.0
+            time.sleep(2.0)
+    finally:
+        if client is not None:
+            try:
+                client.clear()
+                client.close()
+            except Exception:
+                pass
+    return 0
+
+
+def start_background_service(game_pid: int) -> None:
+    """Spawn a detached companion that outlives the launcher window, but exits with the game."""
+    if getattr(sys, "frozen", False):
+        command = [sys.executable, "--background-service", str(game_pid)]
+    else:
+        command = [sys.executable, str(Path(__file__).resolve()), "--background-service", str(game_pid)]
+    flags = 0
+    startupinfo = None
+    if sys.platform == "win32":
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0x00000008) | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = 0
+    try:
+        subprocess.Popen(command, cwd=str(launcher_folder()), stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         creationflags=flags, startupinfo=startupinfo, close_fds=True)
+    except OSError:
+        # The game must still launch even if the optional helper cannot start.
+        pass
+
+
 def launcher_folder() -> Path:
     return Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 
@@ -512,6 +593,7 @@ class Launcher:
             self.status_detail.configure(text="Starting Panda Royale. This launcher can stay open.")
             self.news.configure(text="STATUS  •  Launch request sent", fg=CYAN)
             self.game_process = subprocess.Popen([str(game)], cwd=str(game.parent))
+            start_background_service(self.game_process.pid)
             self._start_discord_presence()
             self.play_button.configure(state="disabled")
             self.install_button.configure(state="disabled")
@@ -528,4 +610,9 @@ class Launcher:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) >= 3 and sys.argv[1] == "--background-service":
+        try:
+            raise SystemExit(run_background_service(int(sys.argv[2])))
+        except (ValueError, OSError):
+            raise SystemExit(2)
     Launcher().root.mainloop()

@@ -81,15 +81,15 @@ jobs:
       - name: Build launcher executable
         run: |
           python -m pip install --upgrade pip pyinstaller
-          python -m PyInstaller --onefile --noconsole launcher/launcher.py --name PandaRoyaleLauncher
+          python -m PyInstaller --onedir --noconsole launcher/launcher.py --name PandaRoyaleLauncher
 
       - name: Assemble launcher package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist/PandaRoyale | Out-Null
           Copy-Item package/PandaRoyale.exe dist/PandaRoyale/PandaRoyale.exe
-          Copy-Item dist/PandaRoyaleLauncher.exe dist/PandaRoyale/PandaRoyaleLauncher.exe
-          Set-Content -Path dist/PandaRoyale/README.txt -Value "Run PandaRoyaleLauncher.exe to open the Panda Royale launcher. Keep both EXE files in this folder."
+          Copy-Item dist/PandaRoyaleLauncher/* dist/PandaRoyale/ -Recurse -Force
+          Set-Content -Path dist/PandaRoyale/README.txt -Value "Run PandaRoyaleLauncher.exe to open the Panda Royale launcher. Keep the _internal folder and PandaRoyale.exe beside the launcher executable."
           Compress-Archive -Path dist/PandaRoyale/* -DestinationPath dist/PandaRoyale-Windows-Launcher.zip -Force
 
       - name: Upload launcher package

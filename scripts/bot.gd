@@ -119,12 +119,22 @@ func _physics_process(delta):
         velocity.y -= gravity * delta
     move_and_slide()
 
-    if distance < 32 and attack_timer <= 0:
-        attack_timer = rng.randf_range(0.75,1.35)
-        # accuracy gets worse with range; keep bots challenging but fair
-        var chance = clamp(0.72 - distance/55.0, 0.12, 0.62)
-        if rng.randf() < chance:
-            player.take_damage(rng.randf_range(5.0,10.0))
+    # Bots should not shoot through solid buildings or terrain. Cast from the
+    # upper body toward the player and attack only if the player is visible.
+    if distance < 32.0 and attack_timer <= 0.0:
+        attack_timer = rng.randf_range(0.8, 1.4)
+        var sight_from := global_position + Vector3.UP * 1.45
+        var sight_to := player.global_position + Vector3.UP * 1.1
+        var sight_query := PhysicsRayQueryParameters3D.create(sight_from, sight_to)
+        sight_query.exclude = [self]
+        sight_query.collide_with_areas = false
+        var sight_hit := get_world_3d().direct_space_state.intersect_ray(sight_query)
+        var can_see_player := sight_hit.is_empty() or sight_hit.get("collider") == player
+        if can_see_player:
+            # Accuracy falls with distance, keeping bots readable and fair.
+            var chance := clamp(0.62 - distance / 58.0, 0.08, 0.52)
+            if rng.randf() < chance:
+                player.take_damage(rng.randf_range(4.0, 8.0))
 
 func receive_damage(amount: float):
     health -= amount

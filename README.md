@@ -73,6 +73,11 @@ The current prototype has server-side sanity checks for replicated movement snap
 The launcher checks its own folder and common per-user/system install paths for `PandaRoyale.exe`. If it cannot find a valid executable, it warns the user and offers to download the latest Windows build from the official GitHub Releases asset. Accepted downloads install to `%LOCALAPPDATA%\\PandaRoyale\\PandaRoyale.exe`; the launcher then offers to start the game. If the release asset is unavailable, it offers to open the official Releases page. An internet connection is required for downloading, and a published Windows executable must exist in the latest release.
 
 
+## Launcher Python DLL troubleshooting
+
+If `PandaRoyaleLauncher.exe` displays `Failed to load Python DLL` or reports that `python312.dll` cannot be found, use a fresh launcher ZIP from the latest successful GitHub Actions release. The launcher package is built in directory mode so the bundled `_internal` runtime folder stays beside `PandaRoyaleLauncher.exe`. Do not copy only the launcher EXE out of the ZIP. Extract the entire ZIP, keep `PandaRoyale.exe`, `PandaRoyaleLauncher.exe`, and the generated `_internal` folder together, then run the launcher. This packaging change needs a successful Windows workflow run before it can be considered verified.
+
+
 ## Add Panda Royale to Steam (non-Steam shortcut)
 
 You can add the Windows game to your personal Steam Library without publishing it on Steam or paying a Steam Direct fee. First install Panda Royale, then open the launcher and click **ADD TO STEAM**. The launcher copies the detected `PandaRoyale.exe` path and opens Steam. In Steam, choose **Games → Add a Non-Steam Game to My Library**, select **Browse**, choose `PandaRoyale.exe`, and add it. You can rename the shortcut and customise its artwork from your Steam Library. This is a local shortcut only; it does not upload or publish Panda Royale to Steam. Steam must be installed for the Steam Library step.

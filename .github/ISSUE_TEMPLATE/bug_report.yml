@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a Panda Royale game, launcher, or crash issue
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not include passwords, access tokens, or other private information. Reports are submitted publicly.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected component
+      options:
+        - Game
+        - Launcher
+        - Crash on startup
+        - Multiplayer
+        - Graphics / performance
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the issue and any error message.
+      placeholder: Tell us what went wrong...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Panda Royale...
+        2. Click...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: false
+  - type: textarea
+    id: system
+    attributes:
+      label: System details
+      description: Include Windows version, game version, graphics settings, and relevant crash/log details. Remove private information.
+      render: text
+    validations:
+      required: false

@@ -455,7 +455,7 @@ class Launcher:
         return DISCORD_APPLICATION_ID
 
     def _start_discord_presence(self):
-        """Best-effort Discord Rich Presence; game launch must never depend on it."""
+        """Use Discord desktop current session through its official local RPC IPC."""
         app_id = self._discord_application_id()
         if not app_id:
             self.news.configure(text="STATUS  •  Discord Rich Presence needs its game Application ID", fg=MUTED)
@@ -467,10 +467,11 @@ class Launcher:
             client.update(details="Playing Panda Royale", state="Dropping into the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")
             self.rpc_client = client
             self.news.configure(text="STATUS  •  Discord Rich Presence connected", fg=CYAN)
+            self.status_detail.configure(text="Connected through the Discord desktop app existing session. No extra authorization or account permissions are requested.")
         except Exception as exc:
             self.rpc_client = None
             self.news.configure(text="STATUS  •  Discord RPC unavailable (game still launches)", fg=MUTED)
-            self.status_detail.configure(text=f"Game launch is unaffected. Discord may be closed or signed out. Will retry while the game is running. ({exc})")
+            self.status_detail.configure(text=f"Game launch is unaffected. Open the official Discord desktop app and sign in; Panda Royale will retry automatically. No password, user token, or OAuth grant is collected. ({exc})")
             if self.game_process is not None and self.game_process.poll() is None and not self.rpc_retry_pending:
                 self.rpc_retry_pending = True
                 self.root.after(10000, self._retry_discord_presence)

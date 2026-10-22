@@ -16,6 +16,8 @@ var _peer_last_position: Dictionary = {}
 var _peer_last_state_time: Dictionary = {}
 var _peer_last_packet_time: Dictionary = {}
 var _peer_strikes: Dictionary = {}
+var _peer_strike_times: Dictionary = {}
+const STRIKE_WINDOW_SECONDS := 60.0
 const MAX_MOVE_SPEED := 18.0
 const MOVE_ALLOWANCE := 2.5
 const MAX_STATE_RATE := 35.0
@@ -63,6 +65,7 @@ func close_session() -> void:
     _peer_last_state_time.clear()
     _peer_last_packet_time.clear()
     _peer_strikes.clear()
+    _peer_strike_times.clear()
     if peer:
         peer.close()
     peer = null
@@ -168,6 +171,7 @@ func _on_peer_connected(id: int) -> void:
     _peer_last_state_time[id] = Time.get_ticks_msec() / 1000.0
     _peer_last_packet_time[id] = 0.0
     _peer_strikes[id] = 0
+    _peer_strike_times[id] = []
     peer_connected.emit(id)
     _set_status("Player %d connected." % id)
 
@@ -176,6 +180,7 @@ func _on_peer_disconnected(id: int) -> void:
     _peer_last_state_time.erase(id)
     _peer_last_packet_time.erase(id)
     _peer_strikes.erase(id)
+    _peer_strike_times.erase(id)
     peer_disconnected.emit(id)
     _set_status("Player %d disconnected." % id)
 

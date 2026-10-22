@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 APP_NAME = "PANDA ROYALE"
+DISCORD_APPLICATION_ID = "1562710544010584155"  # Public game application ID for Rich Presence
 GAME_EXE = "PandaRoyale.exe"
 GAME_DOWNLOAD_URL = "https://github.com/PandaManDev/Panda-Royale/releases/latest/download/PandaRoyale.exe"
 RELEASES_URL = "https://github.com/PandaManDev/Panda-Royale/releases/latest"
@@ -441,14 +442,17 @@ class Launcher:
         webbrowser.open(RELEASES_URL)
 
     def _discord_application_id(self):
-        """Read the game's Discord application ID without shipping a secret/token."""
+        """Use the game's public application ID; overrides are for developer testing."""
         configured = os.environ.get("PANDA_ROYALE_DISCORD_APP_ID", "").strip()
         if configured:
             return configured
         try:
-            return (launcher_folder() / "discord_app_id.txt").read_text(encoding="utf-8").strip()
+            from_file = (launcher_folder() / "discord_app_id.txt").read_text(encoding="utf-8").strip()
+            if from_file:
+                return from_file
         except OSError:
-            return ""
+            pass
+        return DISCORD_APPLICATION_ID
 
     def _start_discord_presence(self):
         """Best-effort Discord Rich Presence; game launch must never depend on it."""

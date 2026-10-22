@@ -8,6 +8,7 @@ import webbrowser
 import urllib.parse
 import time
 import logging
+import json
 from logging.handlers import RotatingFileHandler
 import ctypes
 from ctypes import wintypes
@@ -29,6 +30,42 @@ MUTED = "#9aa4bd"
 
 
 BACKGROUND_SERVICE_NAME = "Panda Royale Background Service"
+RELEASE_API_URL = "https://api.github.com/repos/PandaManDev/Panda-Royale/releases/latest"
+SETTINGS_FILE = "settings.json"
+VERSION_FILE = "game-version.txt"
+logger = logging.getLogger("panda_royale")
+
+
+def load_settings() -> dict:
+    defaults = {"discord_rpc": True, "minimize_to_tray": False, "auto_update_check": True}
+    try:
+        data = json.loads((install_folder() / SETTINGS_FILE).read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            defaults.update({key: bool(data.get(key, value)) for key, value in defaults.items()})
+    except (OSError, ValueError, TypeError):
+        pass
+    return defaults
+
+
+def save_settings(settings: dict) -> None:
+    path = install_folder() / SETTINGS_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix(".tmp")
+    temp.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    temp.replace(path)
+
+
+def installed_version() -> str:
+    try:
+        return (install_folder() / VERSION_FILE).read_text(encoding="utf-8").strip() or "unknown"
+    except OSError:
+        return "unknown"
+
+
+def write_installed_version(version: str) -> None:
+    path = install_folder() / VERSION_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(version.strip() or "unknown", encoding="utf-8")
 
 
 def _process_is_running(pid: int) -> bool:
@@ -56,6 +93,8 @@ def _process_is_running(pid: int) -> bool:
 
 def run_background_service(game_pid: int) -> int:
     """Quiet companion process: keep Discord Rich Presence alive and watch the game process."""
+    service_logger = configure_logging("background-service.log")
+    service_logger.info("Background companion started for game PID %s", game_pid)
     client = None
     app_id = os.environ.get("PANDA_ROYALE_DISCORD_APP_ID", "").strip() or DISCORD_APPLICATION_ID
     next_rpc_attempt = 0.0
@@ -68,7 +107,8 @@ def run_background_service(game_pid: int) -> int:
                     client = Presence(app_id)
                     client.connect()
                     client.update(details="Playing Panda Royale", state="In the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")\n                    logger.info("Discord Rich Presence connected")
-                except Exception:
+                except Exception as exc:
+                    service_logger.warning("Discord Rich Presence connection failed: %s", exc)
                     if client is not None:
                         try:
                             client.close()
@@ -84,6 +124,7 @@ def run_background_service(game_pid: int) -> int:
                 client.close()
             except Exception:
                 pass
+    service_logger.info("Background companion stopped; game PID %s is no longer running", game_pid)
     return 0
 
 
@@ -245,12 +286,25 @@ class Launcher:
         self.download_active = False
         self.game_path = None
         self.requirements_ok = True
+        self.settings = load_settings()
+        self.latest_release = None
+        self.tray_icon = None
         self._build_ui()
         self.root.after(150, self._check_minimum_requirements)
         self.root.after(250, self._startup_check)
         self.root.after(450, self._animate)
+        if self.settings.get("auto_update_check", True):
+            self.root.after(1200, lambda: self.check_for_updates(silent=True))
 
     def _build_ui(self):
+        menu = tk.Menu(self.root, tearoff=0)
+        tools_menu = tk.Menu(menu, tearoff=0)
+        tools_menu.add_command(label="Check for updates", command=self.check_for_updates)
+        tools_menu.add_command(label="Settings", command=self.open_settings)
+        tools_menu.add_command(label="View logs", command=self.open_logs)
+        tools_menu.add_command(label="Open install folder", command=self.open_install_folder)
+        menu.add_cascade(label="Launcher tools", menu=tools_menu)
+        self.root.configure(menu=menu)
         header = tk.Frame(self.root, bg=BG)
         header.pack(fill="x", padx=34, pady=(24, 6))
         tk.Label(header, text="PANDA", font=("Segoe UI", 13, "bold"), fg=CYAN, bg=BG).pack(anchor="w")
@@ -282,6 +336,124 @@ class Launcher:
         self.bug_button = tk.Button(buttons, text="REPORT A BUG", command=self.open_bug_report, font=("Segoe UI", 9, "bold"), bg="#45243f", fg=TEXT, activebackground="#673455", activeforeground=TEXT, relief="flat", padx=12, pady=12, cursor="hand2")
         self.bug_button.pack(side="left", padx=(10, 0))
         tk.Label(buttons, text="EARLY ACCESS  •  WINDOWS", font=("Segoe UI", 8, "bold"), fg=MUTED, bg=PANEL).pack(side="right", anchor="s")
+
+    def check_for_updates(self, silent=False):
+        if self.download_active:
+            return
+        self.news.configure(text="STATUS  •  Checking GitHub Releases for updates...", fg=CYAN)
+        threading.Thread(target=self._check_updates_worker, args=(silent,), daemon=True).start()
+
+    def _check_updates_worker(self, silent):
+        try:
+            request = urllib.request.Request(RELEASE_API_URL, headers={"User-Agent": "PandaRoyaleLauncher/1.1", "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(request, timeout=15) as response:
+                release = json.loads(response.read().decode("utf-8"))
+            tag = str(release.get("tag_name") or release.get("name") or "").strip()
+            assets = release.get("assets") or []
+            asset = next((item for item in assets if item.get("name") == GAME_EXE), None)
+            if not tag or not asset or not asset.get("browser_download_url"):
+                raise RuntimeError("The latest GitHub Release does not contain the PandaRoyale.exe asset.")
+            self.latest_release = {"version": tag, "url": asset["browser_download_url"], "html_url": release.get("html_url", RELEASES_URL)}
+            current = installed_version()
+            newer = current == "unknown" or current != tag
+            self.root.after(0, lambda: self._update_check_complete(tag, current, newer, silent))
+        except Exception as exc:
+            logger.warning("Update check failed: %s", exc)
+            self.root.after(0, lambda error=str(exc): self._update_check_failed(error, silent))
+
+    def _update_check_complete(self, latest, current, newer, silent):
+        if newer:
+            self.news.configure(text=f"STATUS  •  Update available: {latest}", fg="#ffb454")
+            self.status_detail.configure(text=f"Installed version: {current}. Latest release: {latest}. Use INSTALL / REPAIR to download the latest build.")
+            if not silent and messagebox.askyesno("Panda Royale update available", f"Installed version: {current}\nLatest version: {latest}\n\nDownload and install the latest version now?"):
+                self.install_game()
+        else:
+            self.news.configure(text=f"STATUS  •  Panda Royale is up to date ({latest})", fg=CYAN)
+            if not silent:
+                messagebox.showinfo("Panda Royale is up to date", f"You have the latest release ({latest}).")
+
+    def _update_check_failed(self, error, silent):
+        self.news.configure(text="STATUS  •  Update check unavailable; game can still launch", fg=MUTED)
+        logger.warning("Could not check releases: %s", error)
+        if not silent:
+            messagebox.showwarning("Update check unavailable", f"Could not check GitHub Releases. Your installed game has not been changed.\n\n{error}")
+
+    def open_settings(self):
+        window = tk.Toplevel(self.root)
+        window.title("Panda Royale — Settings")
+        window.geometry("460x330")
+        window.configure(bg=BG)
+        window.transient(self.root)
+        tk.Label(window, text="LAUNCHER SETTINGS", font=("Segoe UI", 16, "bold"), fg=CYAN, bg=BG).pack(anchor="w", padx=24, pady=(22, 14))
+        rpc_var = tk.BooleanVar(value=self.settings.get("discord_rpc", True))
+        tray_var = tk.BooleanVar(value=self.settings.get("minimize_to_tray", False))
+        updates_var = tk.BooleanVar(value=self.settings.get("auto_update_check", True))
+        tk.Checkbutton(window, text="Enable Discord Rich Presence", variable=rpc_var, fg=TEXT, bg=BG, selectcolor=PANEL, activebackground=BG, activeforeground=TEXT).pack(anchor="w", padx=26, pady=5)
+        tk.Checkbutton(window, text="Minimize to system tray on close (requires tray support)", variable=tray_var, fg=TEXT, bg=BG, selectcolor=PANEL, activebackground=BG, activeforeground=TEXT).pack(anchor="w", padx=26, pady=5)
+        tk.Checkbutton(window, text="Check for game updates on startup", variable=updates_var, fg=TEXT, bg=BG, selectcolor=PANEL, activebackground=BG, activeforeground=TEXT).pack(anchor="w", padx=26, pady=5)
+        def save():
+            self.settings = {"discord_rpc": rpc_var.get(), "minimize_to_tray": tray_var.get(), "auto_update_check": updates_var.get()}
+            try:
+                save_settings(self.settings)
+                logger.info("Launcher settings saved")
+                window.destroy()
+                messagebox.showinfo("Settings saved", "Your settings have been saved.")
+            except OSError as exc:
+                messagebox.showerror("Could not save settings", str(exc))
+        tk.Button(window, text="SAVE SETTINGS", command=save, bg=PURPLE, fg="white", relief="flat", padx=20, pady=9).pack(anchor="e", padx=24, pady=20)
+        tk.Label(window, text="Logs and settings are stored in %LOCALAPPDATA%\\PandaRoyale.", font=("Segoe UI", 8), fg=MUTED, bg=BG).pack(anchor="w", padx=24)
+
+    def open_logs(self):
+        path = install_folder() / "logs"
+        path.mkdir(parents=True, exist_ok=True)
+        try:
+            os.startfile(str(path))
+        except (AttributeError, OSError):
+            webbrowser.open(path.as_uri())
+
+    def open_install_folder(self):
+        path = install_folder()
+        path.mkdir(parents=True, exist_ok=True)
+        try:
+            os.startfile(str(path))
+        except (AttributeError, OSError):
+            webbrowser.open(path.as_uri())
+
+    def _minimize_to_tray(self):
+        try:
+            import pystray
+            from PIL import Image, ImageDraw
+            image = Image.new("RGB", (64, 64), "#090b14")
+            draw = ImageDraw.Draw(image)
+            draw.ellipse((6, 6, 58, 58), fill="#8b5cf6")
+            draw.text((19, 18), "P", fill="white")
+            icon = pystray.Icon("PandaRoyale", image, "Panda Royale", menu=pystray.Menu(
+                pystray.MenuItem("Open launcher", lambda icon, item: self.root.after(0, self._restore_from_tray)),
+                pystray.MenuItem("Check for updates", lambda icon, item: self.root.after(0, self.check_for_updates)),
+                pystray.MenuItem("Quit", lambda icon, item: self.root.after(0, self._quit_from_tray)),
+            ))
+            self.tray_icon = icon
+            self.root.withdraw()
+            threading.Thread(target=icon.run, daemon=True).start()
+            logger.info("Launcher minimized to system tray")
+            return True
+        except Exception as exc:
+            logger.warning("System tray unavailable: %s", exc)
+            messagebox.showwarning("System tray unavailable", "Tray support could not start. The launcher will close normally.\n\n" + str(exc))
+            return False
+
+    def _restore_from_tray(self):
+        self.root.deiconify()
+        self.root.lift()
+
+    def _quit_from_tray(self):
+        if self.tray_icon:
+            try:
+                self.tray_icon.stop()
+            except Exception:
+                pass
+            self.tray_icon = None
+        self._destroy_launcher()
 
     def _check_minimum_requirements(self):
         self.system_specs = get_system_specs()
@@ -373,7 +545,9 @@ class Launcher:
         final_path = target_dir / GAME_EXE
         try:
             target_dir.mkdir(parents=True, exist_ok=True)
-            request = urllib.request.Request(GAME_DOWNLOAD_URL, headers={"User-Agent": "PandaRoyaleLauncher/1.0"})
+            download_url = (self.latest_release or {}).get("url", GAME_DOWNLOAD_URL)
+            version = (self.latest_release or {}).get("version", "unknown")
+            request = urllib.request.Request(download_url, headers={"User-Agent": "PandaRoyaleLauncher/1.1"})
             with urllib.request.urlopen(request, timeout=30) as response, open(temp_path, "wb") as output:
                 total = int(response.headers.get("Content-Length", "0") or "0")
                 downloaded = 0
@@ -388,7 +562,21 @@ class Launcher:
                         self.root.after(0, lambda p=percent: self._set_download_progress(p))
             if temp_path.stat().st_size < 1024 * 1024:
                 raise RuntimeError("The downloaded file is too small to be a valid game executable. A Windows build may not be published yet.")
-            temp_path.replace(final_path)
+            backup_path = target_dir / (GAME_EXE + ".previous")
+            if final_path.exists():
+                try:
+                    backup_path.unlink(missing_ok=True)
+                    final_path.replace(backup_path)
+                except OSError:
+                    raise RuntimeError("Close Panda Royale before updating so the game executable can be replaced.")
+            try:
+                temp_path.replace(final_path)
+            except OSError:
+                if backup_path.exists() and not final_path.exists():
+                    backup_path.replace(final_path)
+                raise
+            write_installed_version(version)
+            logger.info("Installed game version %s at %s", version, final_path)
             self.root.after(0, lambda p=final_path: self._download_success(p))
         except Exception as exc:
             try:
@@ -404,6 +592,7 @@ class Launcher:
 
     def _download_success(self, path):
         self.download_active = False
+        logger.info("Game download/install succeeded: %s", path)
         self.game_path = path
         self.install_button.configure(state="normal", text="REINSTALL / REPAIR", command=self.install_game)
         self.play_button.configure(state="normal")
@@ -416,6 +605,7 @@ class Launcher:
 
     def _download_failed(self, error):
         self.download_active = False
+        logger.error("Game download/install failed: %s", error)
         self.install_button.configure(state="normal", text="OPEN DOWNLOAD PAGE")
         self.install_button.configure(command=self.open_download_page)
         self.status_title.configure(text="DOWNLOAD UNAVAILABLE")
@@ -561,6 +751,9 @@ class Launcher:
 
     def _start_discord_presence(self):
         """Use Discord desktop current session through its official local RPC IPC."""
+        if not self.settings.get("discord_rpc", True):
+            self.news.configure(text="STATUS  •  Discord Rich Presence disabled in settings", fg=MUTED)
+            return
         app_id = self._discord_application_id()
         if not app_id:
             self.news.configure(text="STATUS  •  Discord Rich Presence needs its game Application ID", fg=MUTED)
@@ -588,6 +781,12 @@ class Launcher:
         self._start_discord_presence()
 
     def close_launcher(self):
+        if self.settings.get("minimize_to_tray", False) and self._minimize_to_tray():
+            return
+        self._destroy_launcher()
+
+    def _destroy_launcher(self):
+        logger.info("Launcher closing")
         client = self.rpc_client
         self.rpc_client = None
         if client is not None:
@@ -634,7 +833,8 @@ class Launcher:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 3 and sys.argv[1] == "--background-service":
+    configure_logging()
+if len(sys.argv) >= 3 and sys.argv[1] == "--background-service":
         try:
             raise SystemExit(run_background_service(int(sys.argv[2])))
         except (ValueError, OSError):

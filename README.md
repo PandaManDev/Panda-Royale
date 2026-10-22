@@ -66,3 +66,8 @@ The launcher is a lightweight local front end; it does not yet download patches,
 ## Anti-cheat status and limits
 
 The current prototype has server-side sanity checks for replicated movement snapshots, including non-finite values, world bounds, movement distance, and excessive update frequency. Repeated violations are logged and can disconnect a peer. This is a **baseline only**, not a complete anti-cheat: the prototype still has client-controlled movement and local combat/loot paths. A production-ready design needs host-authoritative movement, firing and hit validation, health/inventory changes, pickups, building, storm and match results, plus latency-aware multiplayer tests. Do not treat the current build as cheat-proof.
+
+
+### Launcher auto-detection and installation
+
+The launcher checks its own folder and common per-user/system install paths for `PandaRoyale.exe`. If it cannot find a valid executable, it warns the user and offers to download the latest Windows build from the official GitHub Releases asset. Accepted downloads install to `%LOCALAPPDATA%\\PandaRoyale\\PandaRoyale.exe`; the launcher then offers to start the game. If the release asset is unavailable, it offers to open the official Releases page. An internet connection is required for downloading, and a published Windows executable must exist in the latest release.

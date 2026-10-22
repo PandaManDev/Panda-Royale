@@ -86,13 +86,11 @@ func _show_crash_support_window():
     dialog.ok_button_text = "CLOSE"
     dialog.add_cancel_button("SUBMIT REPORT")
     dialog.confirmed.connect(func():
-        FileAccess.open(crash_marker_path, FileAccess.WRITE).close()
+        _clear_crash_marker()
     )
     dialog.canceled.connect(func():
         _open_bug_report()
-        var clear_file = FileAccess.open(crash_marker_path, FileAccess.WRITE)
-        if clear_file:
-            clear_file.close()
+        _clear_crash_marker()
     )
     add_child(dialog)
     dialog.popup_centered(Vector2i(620, 260))
@@ -1071,9 +1069,17 @@ func _show_controls():
     menu_layer.add_child(dialog)
     dialog.popup_centered(Vector2i(520, 250))
 
-func _quit_game():
+func _clear_crash_marker() -> void:
     if FileAccess.file_exists(crash_marker_path):
         DirAccess.remove_absolute(ProjectSettings.globalize_path(crash_marker_path))
+
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_WM_CLOSE_REQUEST:
+        _clear_crash_marker()
+        get_tree().quit()
+
+func _quit_game():
+    _clear_crash_marker()
     get_tree().quit()
 
 func _make_box(label, pos, size, color, collision := true, yaw := 0.0):

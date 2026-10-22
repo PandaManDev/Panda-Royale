@@ -4,10 +4,20 @@ var game
 var kind := "ammo"
 var bob_time := 0.0
 var mesh_node: MeshInstance3D
+var rarity := "COMMON"
 
 func _ready():
     var choices = ["health","shield","ammo","weapon"]
     kind = choices[randi() % choices.size()]
+    var rarity_roll := randf()
+    if rarity_roll >= 0.97:
+        rarity = "LEGENDARY"
+    elif rarity_roll >= 0.86:
+        rarity = "EPIC"
+    elif rarity_roll >= 0.62:
+        rarity = "RARE"
+    else:
+        rarity = "COMMON"
     var shape = SphereShape3D.new()
     shape.radius = 1.35
     var collision = CollisionShape3D.new()
@@ -37,11 +47,23 @@ func _ready():
         mat.albedo_color = Color(1.0,0.68,0.12)
         mat.emission_enabled = true
         mat.emission = Color(0.45,0.2,0.01)
+    # Rarity tint and glow make drops easier to read at a glance.
+    var rarity_color := Color(0.82, 0.86, 0.92)
+    match rarity:
+        "RARE":
+            rarity_color = Color(0.12, 0.48, 1.0)
+        "EPIC":
+            rarity_color = Color(0.72, 0.20, 1.0)
+        "LEGENDARY":
+            rarity_color = Color(1.0, 0.62, 0.08)
+    mat.albedo_color = rarity_color
+    mat.emission_enabled = true
+    mat.emission = rarity_color * (0.28 if rarity == "COMMON" else 0.75)
     mesh_node.material_override = mat
     add_child(mesh_node)
 
     var label = Label3D.new()
-    label.text = "RANGER RIFLE" if kind == "weapon" else kind.to_upper()
+    label.text = "%s %s" % [rarity, "RANGER RIFLE" if kind == "weapon" else kind.to_upper()]
     label.font_size = 48
     label.pixel_size = 0.005
     label.position.y = 0.8

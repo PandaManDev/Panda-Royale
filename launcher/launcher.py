@@ -91,6 +91,8 @@ class Launcher:
         self.install_button.pack(side="left", padx=(10, 0))
         self.steam_button = tk.Button(buttons, text="ADD TO STEAM", command=self.add_to_steam, font=("Segoe UI", 10, "bold"), bg="#17344a", fg=TEXT, activebackground="#24536f", activeforeground=TEXT, relief="flat", padx=16, pady=12, cursor="hand2")
         self.steam_button.pack(side="left", padx=(10, 0))
+        self.requirements_button = tk.Button(buttons, text="SYSTEM REQUIREMENTS", command=self.show_requirements, font=("Segoe UI", 9, "bold"), bg="#292345", fg=TEXT, activebackground="#3c3263", activeforeground=TEXT, relief="flat", padx=12, pady=12, cursor="hand2")
+        self.requirements_button.pack(side="left", padx=(10, 0))
         tk.Label(buttons, text="EARLY ACCESS  •  WINDOWS", font=("Segoe UI", 8, "bold"), fg=MUTED, bg=PANEL).pack(side="right", anchor="s")
 
     def _animate(self):
@@ -225,6 +227,45 @@ class Launcher:
         self.news.configure(text="STATUS  •  Game process is active", fg=CYAN)
         self.play_button.configure(state="normal")
         self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
+
+    def show_requirements(self):
+        window = tk.Toplevel(self.root)
+        window.title("Panda Royale — System Requirements")
+        window.geometry("620x570")
+        window.minsize(560, 500)
+        window.configure(bg=BG)
+        window.transient(self.root)
+
+        tk.Label(window, text="SYSTEM REQUIREMENTS", font=("Segoe UI", 19, "bold"), fg=CYAN, bg=BG).pack(anchor="w", padx=26, pady=(24, 4))
+        tk.Label(window, text="Windows PC • Provisional requirements for the current prototype", font=("Segoe UI", 9), fg=MUTED, bg=BG).pack(anchor="w", padx=26, pady=(0, 16))
+
+        content = tk.Frame(window, bg=PANEL, highlightbackground="#292345", highlightthickness=1)
+        content.pack(fill="both", expand=True, padx=24, pady=(0, 18))
+
+        sections = [
+            ("MINIMUM — ESTIMATED", [
+                "OS: Windows 10 or 11, 64-bit",
+                "CPU: 2-core processor around 2.0 GHz",
+                "Memory: 4 GB RAM",
+                "Graphics: GPU supporting OpenGL 3.3 / Godot GL Compatibility",
+                "Storage: 1 GB free space for the game (more may be needed for updates)",
+                "Internet: Broadband connection for online play",
+            ]),
+            ("RECOMMENDED — ESTIMATED", [
+                "OS: Windows 10 or 11, 64-bit",
+                "CPU: 4-core processor",
+                "Memory: 8 GB RAM or more",
+                "Graphics: Dedicated GPU or recent integrated graphics",
+                "Storage: 2 GB free space",
+            ]),
+        ]
+        for heading, lines in sections:
+            tk.Label(content, text=heading, font=("Segoe UI", 11, "bold"), fg=PURPLE if heading.startswith("MINIMUM") else CYAN, bg=PANEL).pack(anchor="w", padx=20, pady=(16, 6))
+            for line in lines:
+                tk.Label(content, text="•  " + line, font=("Segoe UI", 9), fg=TEXT, bg=PANEL, wraplength=540, justify="left").pack(anchor="w", padx=22, pady=2)
+
+        tk.Label(window, text="These are estimates, not verified benchmarks. Performance depends on the final build, resolution, graphics settings, drivers and background apps.", font=("Segoe UI", 9), fg=MUTED, bg=BG, wraplength=560, justify="left").pack(anchor="w", padx=26, pady=(0, 12))
+        tk.Button(window, text="CLOSE", command=window.destroy, font=("Segoe UI", 10, "bold"), bg=PURPLE, fg="white", activebackground="#7441d8", relief="flat", padx=24, pady=8).pack(anchor="e", padx=26, pady=(0, 20))
 
     def add_to_steam(self):
         game = self.game_path or find_installed_game()

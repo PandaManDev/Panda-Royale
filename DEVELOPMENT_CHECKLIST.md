@@ -34,3 +34,23 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 3. Run the Godot 4.7 import and headless main-scene smoke test; fix parser/runtime errors.
 4. Test Discord RPC connected, Discord closed, missing ID, and normal launcher shutdown.
 5. Continue toward server-authoritative combat and match state; movement validation alone is not cheat-proof.
+
+## Multiplayer development log — 2026-10-22
+
+- [x] Added an in-game network status label so host/join/connection messages remain visible during play.
+- [x] Improved remote-player readability with emissive materials, a glowing floor ring, a purple shoulder accent, and a short spawn glow.
+- [x] Fixed the party panel's bottom disconnect action to re-enable the actual host-address input instead of referencing an undefined variable.
+- [x] Static source inspection confirmed the new network HUD and remote visual components exist, and the GDScript parentheses are balanced. This is not a GDScript parser or runtime test.
+- [ ] GitHub Actions Windows/Linux export workflow triggered by commit `eae616b57376e30daabfc0a1fdac38c0460b6d84` is in progress; inspect its result before treating the build as verified.
+- [ ] Run Godot 4.7 import and headless main-scene smoke test.
+- [ ] Test two separate instances on a LAN: host, join, movement replication, remote spawn/disconnect, and reconnect.
+- [ ] Test internet joining with UDP 24560 forwarded; verify that UI explains connection failures clearly.
+- [ ] Implement host-authoritative combat, health, inventory, loot, storm, and match results before describing online play as a complete battle royale.
+
+## Next exact steps
+
+1. Check the Actions run for commit `eae616b57376e30daabfc0a1fdac38c0460b6d84`; fix any parser/import/export failures before adding more multiplayer code.
+2. If the build passes, use two local game instances to validate connection lifecycle and confirm remote-player effects render without errors.
+3. Review peer disconnect and reconnect behavior, then add a small online party roster with connected peer IDs.
+4. Prioritize server-authoritative gameplay actions; movement snapshot validation alone does not prevent combat or loot cheating.
+5. Keep all unexecuted Godot and live-network tests marked pending until actually run.

@@ -46,6 +46,15 @@ func _ready():
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _process(delta):
+    # Smooth remote avatars between the 20 Hz network snapshots to reduce
+    # visible snapping on ordinary network jitter.
+    for peer_id in remote_players.keys():
+        var remote = remote_players[peer_id]
+        if is_instance_valid(remote) and remote.has_meta("network_target_position"):
+            var target_position: Vector3 = remote.get_meta("network_target_position")
+            remote.global_position = remote.global_position.lerp(target_position, min(1.0, delta * 12.0))
+            var target_yaw: float = float(remote.get_meta("network_target_yaw", remote.rotation.y))
+            remote.rotation.y = lerp_angle(remote.rotation.y, target_yaw, min(1.0, delta * 12.0))
     if player and game_started and not paused and not match_over:
         NetworkManager.publish_player_state(player.global_position, player.rotation.y)
     if match_over or not game_started or paused:
@@ -180,8 +189,10 @@ func _on_remote_player_state(peer_id: int, world_position: Vector3, yaw: float) 
     if not is_instance_valid(avatar):
         avatar = _create_remote_avatar(peer_id)
         remote_players[peer_id] = avatar
-    avatar.global_position = world_position
-    avatar.rotation.y = yaw
+    if not avatar.has_meta("network_target_position"):
+        avatar.global_position = world_position
+    avatar.set_meta("network_target_position", world_position)
+    avatar.set_meta("network_target_yaw", yaw)
 
 func _on_remote_peer_disconnected(peer_id: int) -> void:
     if remote_players.has(peer_id):

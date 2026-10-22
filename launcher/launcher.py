@@ -1,9 +1,12 @@
 import os
+import shutil
 import subprocess
 import sys
 import threading
 import urllib.request
 import webbrowser
+import ctypes
+from ctypes import wintypes
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
@@ -27,6 +30,77 @@ def launcher_folder() -> Path:
 def install_folder() -> Path:
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
     return Path(base) / "PandaRoyale"
+
+
+MIN_RAM_GB = 4
+MIN_CPU_CORES = 2
+MIN_FREE_DISK_GB = 1
+
+
+def get_system_specs() -> dict:
+    """Read basic Windows hardware data using built-in APIs."""
+    specs = {
+        "os_ok": sys.platform == "win32",
+        "os_name": "Windows",
+        "cpu_cores": os.cpu_count() or 1,
+        "ram_gb": 0.0,
+        "free_disk_gb": 0.0,
+        "install_path": str(install_folder()),
+        "gpu_note": "Graphics/OpenGL support cannot be reliably confirmed by this lightweight check.",
+    }
+    if sys.platform == "win32":
+        try:
+            version = sys.getwindowsversion()
+            specs["os_name"] = f"Windows {version.major}.{version.minor} (build {version.build})"
+            specs["os_ok"] = version.major >= 10
+        except Exception:
+            specs["os_ok"] = False
+        try:
+            class MEMORYSTATUSEX(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", wintypes.DWORD),
+                    ("dwMemoryLoad", wintypes.DWORD),
+                    ("ullTotalPhys", ctypes.c_ulonglong),
+                    ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong),
+                    ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong),
+                    ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                ]
+            status = MEMORYSTATUSEX()
+            status.dwLength = ctypes.sizeof(status)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+                specs["ram_gb"] = status.ullTotalPhys / (1024 ** 3)
+        except Exception:
+            pass
+    try:
+        path = install_folder()
+        path.mkdir(parents=True, exist_ok=True)
+        specs["free_disk_gb"] = shutil.disk_usage(path).free / (1024 ** 3)
+    except OSError:
+        specs["free_disk_gb"] = 0.0
+    specs["passed"] = (
+        specs["os_ok"]
+        and specs["cpu_cores"] >= MIN_CPU_CORES
+        and specs["ram_gb"] >= MIN_RAM_GB
+        and specs["free_disk_gb"] >= MIN_FREE_DISK_GB
+    )
+    return specs
+
+
+def requirements_failure_message(specs: dict) -> str:
+    issues = []
+    if not specs["os_ok"]:
+        issues.append("• Supported OS: 64-bit Windows 10 or Windows 11")
+    if specs["cpu_cores"] < MIN_CPU_CORES:
+        issues.append(f"• CPU: at least {MIN_CPU_CORES} logical processor cores (detected {specs['cpu_cores']})")
+    if specs["ram_gb"] < MIN_RAM_GB:
+        detected = f"{specs['ram_gb']:.1f} GB" if specs["ram_gb"] else "could not be detected"
+        issues.append(f"• RAM: at least {MIN_RAM_GB} GB (detected {detected})")
+    if specs["free_disk_gb"] < MIN_FREE_DISK_GB:
+        issues.append(f"• Free storage: at least {MIN_FREE_DISK_GB} GB (detected {specs['free_disk_gb']:.1f} GB)")
+    return "\\n".join(issues)
 
 
 def find_installed_game() -> Path | None:
@@ -61,6 +135,7 @@ class Launcher:
         self.download_active = False
         self.game_path = None
         self._build_ui()
+        self.root.after(150, self._check_minimum_requirements)
         self.root.after(250, self._startup_check)
         self.root.after(450, self._animate)
 
@@ -94,6 +169,27 @@ class Launcher:
         self.requirements_button = tk.Button(buttons, text="SYSTEM REQUIREMENTS", command=self.show_requirements, font=("Segoe UI", 9, "bold"), bg="#292345", fg=TEXT, activebackground="#3c3263", activeforeground=TEXT, relief="flat", padx=12, pady=12, cursor="hand2")
         self.requirements_button.pack(side="left", padx=(10, 0))
         tk.Label(buttons, text="EARLY ACCESS  •  WINDOWS", font=("Segoe UI", 8, "bold"), fg=MUTED, bg=PANEL).pack(side="right", anchor="s")
+
+    def _check_minimum_requirements(self):
+        self.system_specs = get_system_specs()
+        specs = self.system_specs
+        if specs["passed"]:
+            return
+        self.play_button.configure(state="disabled")
+        self.install_button.configure(state="disabled")
+        self.steam_button.configure(state="disabled")
+        self.status_title.configure(text="PC DOES NOT MEET MINIMUM REQUIREMENTS")
+        self.status_detail.configure(text="Playing and installing are blocked on this PC because one or more minimum requirements were not detected.")
+        self.news.configure(text="STATUS  •  Minimum requirements check failed", fg="#ff7b91")
+        details = requirements_failure_message(specs)
+        messagebox.showerror(
+            "Panda Royale — Minimum Requirements Not Met",
+            "Panda Royale cannot be installed or launched on this PC yet.\\n\\n"
+            + details
+            + "\\n\\nThe launcher will remain available so you can view requirements and close it. "
+              "Free up disk space or use a supported PC, then reopen the launcher. "
+              "Graphics/OpenGL compatibility must be checked separately."
+        )
 
     def _animate(self):
         self.dots = (self.dots + 1) % 4
@@ -138,6 +234,10 @@ class Launcher:
             self.news.configure(text="STATUS  •  Waiting for installation", fg="#ffb454")
 
     def install_game(self):
+        specs = get_system_specs()
+        if not specs["passed"]:
+            messagebox.showerror("Minimum requirements not met", "Panda Royale installation is blocked.\\n\\n" + requirements_failure_message(specs))
+            return
         if self.download_active:
             return
         if not messagebox.askyesno(
@@ -229,6 +329,7 @@ class Launcher:
         self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
 
     def show_requirements(self):
+        specs = get_system_specs()
         window = tk.Toplevel(self.root)
         window.title("Panda Royale — System Requirements")
         window.geometry("620x570")
@@ -264,7 +365,12 @@ class Launcher:
             for line in lines:
                 tk.Label(content, text="•  " + line, font=("Segoe UI", 9), fg=TEXT, bg=PANEL, wraplength=540, justify="left").pack(anchor="w", padx=22, pady=2)
 
-        tk.Label(window, text="These are estimates, not verified benchmarks. Performance depends on the final build, resolution, graphics settings, drivers and background apps.", font=("Segoe UI", 9), fg=MUTED, bg=BG, wraplength=560, justify="left").pack(anchor="w", padx=26, pady=(0, 12))
+        detected = (f"Detected on this PC: {specs['os_name']} • {specs['cpu_cores']} logical CPU cores • "
+                    f"{specs['ram_gb']:.1f} GB RAM • {specs['free_disk_gb']:.1f} GB free storage.\\n"
+                    f"Automatic check: {'PASS' if specs['passed'] else 'FAIL'}.\\n"
+                    "Graphics/OpenGL support cannot be verified reliably by this check.")
+        tk.Label(window, text=detected, font=("Segoe UI", 9, "bold"), fg=CYAN if specs["passed"] else "#ff7b91", bg=BG, wraplength=560, justify="left").pack(anchor="w", padx=26, pady=(0, 8))
+        tk.Label(window, text="These are provisional estimates, not verified benchmarks. The launcher blocks play and game installation if Windows, CPU, RAM, or free-storage checks fail. Graphics/OpenGL compatibility must be checked separately.", font=("Segoe UI", 9), fg=MUTED, bg=BG, wraplength=560, justify="left").pack(anchor="w", padx=26, pady=(0, 12))
         tk.Button(window, text="CLOSE", command=window.destroy, font=("Segoe UI", 10, "bold"), bg=PURPLE, fg="white", activebackground="#7441d8", relief="flat", padx=24, pady=8).pack(anchor="e", padx=26, pady=(0, 20))
 
     def add_to_steam(self):
@@ -305,6 +411,12 @@ class Launcher:
         webbrowser.open(RELEASES_URL)
 
     def launch_game(self):
+        specs = get_system_specs()
+        if not specs["passed"]:
+            self.play_button.configure(state="disabled")
+            self.install_button.configure(state="disabled")
+            messagebox.showerror("Minimum requirements not met", "Panda Royale launch is blocked.\\n\\n" + requirements_failure_message(specs))
+            return
         game = self.game_path or find_installed_game()
         if not game:
             self.game_path = None

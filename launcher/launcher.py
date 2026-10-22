@@ -106,7 +106,8 @@ def run_background_service(game_pid: int) -> int:
                     from pypresence import Presence
                     client = Presence(app_id)
                     client.connect()
-                    client.update(details="Playing Panda Royale", state="In the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")\n                    logger.info("Discord Rich Presence connected")
+                    client.update(details="Playing Panda Royale", state="In the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")
+                    logger.info("Discord Rich Presence connected")
                 except Exception as exc:
                     service_logger.warning("Discord Rich Presence connection failed: %s", exc)
                     if client is not None:

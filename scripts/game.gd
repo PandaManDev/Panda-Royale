@@ -714,65 +714,82 @@ func _show_party_preview():
     status.add_theme_color_override("font_color", Color(0.65, 0.9, 1.0))
     outer.add_child(status)
 
+    _menu_label(outer, "CREATE A FRIEND CODE", 16, Color(0.78, 0.91, 1.0), true)
+    var host_address_input = LineEdit.new()
+    host_address_input.placeholder_text = "Your public IP or reachable hostname"
+    host_address_input.custom_minimum_size = Vector2(360, 42)
+    host_address_input.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    outer.add_child(host_address_input)
+
+    var friend_code_input = LineEdit.new()
+    friend_code_input.placeholder_text = "Friend code appears here after hosting"
+    friend_code_input.editable = false
+    friend_code_input.custom_minimum_size = Vector2(360, 42)
+    friend_code_input.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    outer.add_child(friend_code_input)
+
+    var host_row = HBoxContainer.new()
+    host_row.alignment = BoxContainer.ALIGNMENT_CENTER
+    host_row.add_theme_constant_override("separation", 10)
+    outer.add_child(host_row)
+
     var host_button = Button.new()
     host_button.text = "HOST PARTY"
-    host_button.custom_minimum_size = Vector2(360, 48)
-    host_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    host_button.custom_minimum_size = Vector2(175, 46)
     host_button.pressed.connect(func():
         var err = NetworkManager.host_game()
         status.text = NetworkManager.last_status
         if err == OK:
+            var host_address = host_address_input.text.strip_edges()
+            if host_address.is_empty():
+                status.text += "\\nHosting locally. Enter your public IP/hostname above to create a shareable code."
+                friend_code_input.text = ""
+            else:
+                friend_code_input.text = "PR-%s:%d" % [host_address, NetworkManager.DEFAULT_PORT]
+                status.text += "\\nFriend code created. Share it with your friend. Port 24560/UDP may need forwarding."
             host_button.disabled = true
-            status.text += "\\nGive your friend your public IP address. They may need port 24560/UDP forwarded on the host router."
     )
-    outer.add_child(host_button)
+    host_row.add_child(host_button)
 
-    # Build the Steam invite control directly in the party UI so it always has
-    # a real pressed handler; don't rely on runtime button injection.
-    var steam_invite_button = Button.new()
-    steam_invite_button.name = "SteamInviteButton"
-    steam_invite_button.text = "INVITE VIA STEAM"
-    steam_invite_button.tooltip_text = "Requires the GodotSteam extension and Steam setup."
-    steam_invite_button.custom_minimum_size = Vector2(360, 48)
-    steam_invite_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    steam_invite_button.pressed.connect(func():
-        status.text = "Checking Steam invite support..."
-        if has_node("/root/SteamManager"):
-            SteamManager.create_lobby_and_invite()
-            status.text = SteamManager.status
-        else:
-            status.text = "Steam invite support isn't loaded. Check the SteamManager autoload."
+    var copy_code_button = Button.new()
+    copy_code_button.text = "COPY CODE"
+    copy_code_button.custom_minimum_size = Vector2(150, 46)
+    copy_code_button.pressed.connect(func():
+        if friend_code_input.text.strip_edges().is_empty():
+            status.text = "Host a party and enter a reachable public IP/hostname first."
+            return
+        DisplayServer.clipboard_set(friend_code_input.text)
+        status.text = "Friend code copied to clipboard."
     )
-    outer.add_child(steam_invite_button)
+    host_row.add_child(copy_code_button)
 
-    var steam_status_callback = func(message: String):
-        if is_instance_valid(status):
-            status.text = message
-    if SteamManager.status_changed.is_connected(steam_status_callback):
-        SteamManager.status_changed.disconnect(steam_status_callback)
-    SteamManager.status_changed.connect(steam_status_callback)
-    panel.tree_exited.connect(func():
-        if SteamManager.status_changed.is_connected(steam_status_callback):
-            SteamManager.status_changed.disconnect(steam_status_callback)
-    )
-
-    _menu_label(outer, "JOIN A FRIEND", 16, Color(0.78, 0.91, 1.0), true)
-    var address_input = LineEdit.new()
-    address_input.placeholder_text = "Friend's IP address or hostname"
-    address_input.custom_minimum_size = Vector2(360, 42)
-    address_input.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    outer.add_child(address_input)
+    _menu_label(outer, "JOIN WITH A FRIEND CODE", 16, Color(0.78, 0.91, 1.0), true)
+    var friend_code_join_input = LineEdit.new()
+    friend_code_join_input.placeholder_text = "PR-your-hostname-or-IP:24560"
+    friend_code_join_input.custom_minimum_size = Vector2(360, 42)
+    friend_code_join_input.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    outer.add_child(friend_code_join_input)
 
     var join_button = Button.new()
     join_button.text = "JOIN PARTY"
     join_button.custom_minimum_size = Vector2(360, 48)
     join_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
     join_button.pressed.connect(func():
-        var address = address_input.text.strip_edges()
+        var code = friend_code_join_input.text.strip_edges()
+        if code.begins_with("PR-"):
+            code = code.substr(3)
+        var separator = code.rfind(":")
+        var address = code
+        var port := NetworkManager.DEFAULT_PORT
+        if separator > 0:
+            var port_text = code.substr(separator + 1)
+            if port_text.is_valid_int():
+                port = int(port_text)
+                address = code.substr(0, separator)
         if address.is_empty():
-            status.text = "Enter the host's IP address or hostname first."
+            status.text = "Enter a valid friend code, such as PR-example.com:24560."
             return
-        var err = NetworkManager.join_game(address)
+        var err = NetworkManager.join_game(address, port)
         status.text = NetworkManager.last_status
         if err == OK:
             join_button.disabled = true
@@ -790,7 +807,7 @@ func _show_party_preview():
             NetworkManager.status_changed.disconnect(network_callback)
     )
 
-    _menu_label(outer, "Note: ENet connects players, but replicated characters, combat, loot, and shared match state are not implemented yet. For friends outside your home network, the host may need UDP port 24560 forwarded.", 11, Color(0.72, 0.77, 0.84), false)
+    _menu_label(outer, "Friend codes currently contain the host IP/hostname and port; they are not short account codes and require a reachable host. Friends outside your home network may need UDP port 24560 forwarded. Multiplayer combat and shared match state still need implementation.", 11, Color(0.72, 0.77, 0.84), false)
 
     var buttons = HBoxContainer.new()
     buttons.alignment = BoxContainer.ALIGNMENT_CENTER

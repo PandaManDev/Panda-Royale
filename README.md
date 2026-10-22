@@ -55,3 +55,14 @@ Steam is not required for this flow.
 The ENet host validates client movement snapshots before relaying them: it rejects non-finite coordinates, checks movement speed and world bounds, limits update frequency, logs strikes, and disconnects a peer after repeated violations. This is an early server-side sanity layer intended to make basic teleport/speed exploits harder.
 
 **Security limitation:** this prototype is not yet cheat-proof. The current game still runs important movement, damage, loot, and match logic on clients, and the host does not yet authoritatively simulate all player actions. A production anti-cheat needs server-authoritative movement and combat, validated fire/reload/ammo/loot actions, and testing against false positives. Do not treat this baseline as a guarantee against cheating.
+
+
+## Windows launcher
+
+The Windows build workflow also packages a standalone **Panda Royale Launcher**. The launcher shows a launch/waiting status, checks for `PandaRoyale.exe` beside it, and starts the game when you press **PLAY NOW**. Download the `PandaRoyale-Windows-Launcher.zip` asset from [Releases](https://github.com/PandaManDev/Panda-Royale/releases), extract the entire ZIP, and run `PandaRoyaleLauncher.exe`. Keep both executables together in the extracted folder.
+
+The launcher is a lightweight local front end; it does not yet download patches, authenticate accounts, or show live matchmaking/queue status. “Waiting for game” means it is checking for the local game executable, not waiting for an online server.
+
+## Anti-cheat status and limits
+
+The current prototype has server-side sanity checks for replicated movement snapshots, including non-finite values, world bounds, movement distance, and excessive update frequency. Repeated violations are logged and can disconnect a peer. This is a **baseline only**, not a complete anti-cheat: the prototype still has client-controlled movement and local combat/loot paths. A production-ready design needs host-authoritative movement, firing and hit validation, health/inventory changes, pickups, building, storm and match results, plus latency-aware multiplayer tests. Do not treat the current build as cheat-proof.

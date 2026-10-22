@@ -205,6 +205,25 @@ class Launcher:
         if messagebox.askyesno("Could not download Panda Royale", f"Automatic installation failed.\\n\\nDetails: {error}\\n\\nWould you like to open the official releases page to download it manually?"):
             self.open_download_page()
 
+    def _check_game_startup(self):
+        process = self.game_process
+        if process is None:
+            return
+        code = process.poll()
+        if code is not None:
+            self.status_title.configure(text="GAME CLOSED DURING STARTUP")
+            self.status_detail.configure(text=f"Panda Royale exited before it finished starting (exit code {code}). The black window may indicate a game startup error. Try reinstalling the latest build.")
+            self.news.configure(text="STATUS  •  Game did not stay open", fg="#ff7b91")
+            self.play_button.configure(state="normal")
+            self.install_button.configure(state="normal")
+            self.install_button.configure(text="REINSTALL / REPAIR", command=self.install_game)
+            return
+        self.status_title.configure(text="GAME IS RUNNING")
+        self.status_detail.configure(text="Panda Royale's process is running. If its window stays black for more than a few seconds, close it and reinstall the latest build.")
+        self.news.configure(text="STATUS  •  Game process is active", fg=CYAN)
+        self.play_button.configure(state="normal")
+        self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
+
     def open_download_page(self):
         webbrowser.open(RELEASES_URL)
 
@@ -220,9 +239,13 @@ class Launcher:
             self.status_detail.configure(text="Starting Panda Royale. This launcher can stay open.")
             self.news.configure(text="STATUS  •  Launch request sent", fg=CYAN)
             self.game_process = subprocess.Popen([str(game)], cwd=str(game.parent))
-            self.status_title.configure(text="GAME LAUNCHED")
-            self.status_detail.configure(text="Have fun out there. Good luck, and watch the storm!")
-            self.news.configure(text="STATUS  •  Game process started", fg=CYAN)
+            self.play_button.configure(state="disabled")
+            self.install_button.configure(state="disabled")
+            self.status_title.configure(text="WAITING FOR GAME WINDOW...")
+            self.status_detail.configure(text="Panda Royale is starting. This can take a little while on the first launch. Keep this launcher open while the game initializes.")
+            self.news.configure(text="STATUS  •  Waiting for the game to finish starting", fg=CYAN)
+            self.progress.coords(self.bar, 0, 0, max(1, self.progress.winfo_width()) * 0.35, 5)
+            self.root.after(1200, self._check_game_startup)
         except OSError as exc:
             messagebox.showerror("Could not launch Panda Royale", str(exc))
             self.status_title.configure(text="LAUNCH FAILED")

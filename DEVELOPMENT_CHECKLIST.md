@@ -72,3 +72,13 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 2. If checks pass, download the EXE from that successful release and launch it on Windows.
 3. Confirm the purple boot screen clears and the main menu appears; if not, collect the Godot log from `%APPDATA%\\Godot\\app_userdata\\Panda Royale\\logs`.
 4. Only mark the black-screen bug resolved after a real Windows launch is confirmed.
+
+
+## Follow-up — Godot autoload parse-check correction — 2026-10-22
+
+- [x] Diagnosed the CI error `Identifier not found: NetworkManager` when `game.gd` was checked with `--script`: standalone script mode does not register the project's autoload singleton.
+- [x] Removed the invalid standalone `game.gd` check. The workflow checks `network_manager.gd` standalone and uses the project main-scene smoke test to load `game.gd` with `NetworkManager` registered.
+- [ ] Confirm the updated workflow's import, main-scene smoke test, and Windows export pass.
+- [ ] Launch the newly built Windows executable and verify the boot screen transitions to the menu.
+
+Next: inspect the Actions run triggered by commit `19b4d95895ccd7d3b196fda43f5d309debefc627`. If the main-scene smoke test still reports a compile/runtime error, fix that error rather than weakening the check.

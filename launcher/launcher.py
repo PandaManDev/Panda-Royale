@@ -134,6 +134,7 @@ class Launcher:
         self.root.protocol("WM_DELETE_WINDOW", self.close_launcher)
         self.game_process = None
         self.rpc_client = None
+        self.rpc_retry_pending = False
         self.dots = 0
         self.download_active = False
         self.game_path = None
@@ -453,7 +454,7 @@ class Launcher:
         """Best-effort Discord Rich Presence; game launch must never depend on it."""
         app_id = self._discord_application_id()
         if not app_id:
-            self.news.configure(text="STATUS  •  Discord Rich Presence not configured", fg=MUTED)
+            self.news.configure(text="STATUS  •  Discord Rich Presence needs its game Application ID", fg=MUTED)
             return
         try:
             from pypresence import Presence
@@ -465,7 +466,16 @@ class Launcher:
         except Exception as exc:
             self.rpc_client = None
             self.news.configure(text="STATUS  •  Discord RPC unavailable (game still launches)", fg=MUTED)
-            self.status_detail.configure(text=f"Game launch is unaffected. Discord RPC could not connect: {exc}")
+            self.status_detail.configure(text=f"Game launch is unaffected. Discord may be closed or signed out. Will retry while the game is running. ({exc})")
+            if self.game_process is not None and self.game_process.poll() is None and not self.rpc_retry_pending:
+                self.rpc_retry_pending = True
+                self.root.after(10000, self._retry_discord_presence)
+
+    def _retry_discord_presence(self):
+        self.rpc_retry_pending = False
+        if self.rpc_client is not None or self.game_process is None or self.game_process.poll() is not None:
+            return
+        self._start_discord_presence()
 
     def close_launcher(self):
         client = self.rpc_client

@@ -835,9 +835,10 @@ class Launcher:
 
 if __name__ == "__main__":
     configure_logging()
-if len(sys.argv) >= 3 and sys.argv[1] == "--background-service":
+    if len(sys.argv) >= 3 and sys.argv[1] == "--background-service":
         try:
             raise SystemExit(run_background_service(int(sys.argv[2])))
         except (ValueError, OSError):
             raise SystemExit(2)
-    Launcher().root.mainloop()
+    else:
+        Launcher().root.mainloop()

@@ -33,6 +33,7 @@ var hud_update_timer := 0.0
 var eliminations := 0
 var selected_mode := "SOLO"
 var remote_players: Dictionary = {}
+var network_label: Label
 var performance_preset := "LOW"
 var daily_challenge_label: Label
 var challenge_progress := 0
@@ -58,6 +59,7 @@ func _ready():
 func _initialize_game():
     NetworkManager.player_state_received.connect(_on_remote_player_state)
     NetworkManager.peer_disconnected.connect(_on_remote_peer_disconnected)
+    NetworkManager.status_changed.connect(_on_network_status_changed)
     _build_world()
     _apply_performance_preset(performance_preset, false)
     _build_zone_ring()
@@ -304,6 +306,17 @@ func _on_remote_peer_disconnected(peer_id: int) -> void:
             avatar.queue_free()
         remote_players.erase(peer_id)
 
+func _on_network_status_changed(message: String) -> void:
+    if not is_instance_valid(network_label):
+        return
+    network_label.text = "NETWORK  •  " + message.to_upper()
+    if message.to_lower().contains("connected") or message.to_lower().contains("hosting"):
+        network_label.add_theme_color_override("font_color", Color(0.38, 1.0, 0.70))
+    elif message.to_lower().contains("failed") or message.to_lower().contains("disconnected") or message.to_lower() == "offline":
+        network_label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.55))
+    else:
+        network_label.add_theme_color_override("font_color", Color(0.40, 0.83, 1.0))
+
 func _create_remote_avatar(peer_id: int) -> Node3D:
     var avatar = Node3D.new()
     avatar.name = "RemotePlayer_%d" % peer_id
@@ -314,10 +327,59 @@ func _create_remote_avatar(peer_id: int) -> Node3D:
     body_mesh.mesh = body
     body_mesh.position.y = 0.9
     var body_material = StandardMaterial3D.new()
-    body_material.albedo_color = Color(0.20, 0.68, 1.0)
-    body_material.roughness = 0.72
+    body_material.albedo_color = Color(0.16, 0.52, 0.92)
+    body_material.roughness = 0.38
+    body_material.metallic = 0.18
+    body_material.emission_enabled = true
+    body_material.emission = Color(0.04, 0.28, 0.82)
+    body_material.emission_energy_multiplier = 0.45
     body_mesh.material_override = body_material
     avatar.add_child(body_mesh)
+
+    # A luminous team ring makes remote players easy to read against the island.
+    var ring_mesh = MeshInstance3D.new()
+    ring_mesh.name = "TeamRing"
+    var ring = TorusMesh.new()
+    ring.inner_radius = 0.48
+    ring.outer_radius = 0.62
+    ring.rings = 24
+    ring.ring_segments = 8
+    ring_mesh.mesh = ring
+    ring_mesh.rotation.x = PI / 2.0
+    ring_mesh.position.y = 0.08
+    var ring_material = StandardMaterial3D.new()
+    ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    ring_material.albedo_color = Color(0.18, 0.68, 1.0)
+    ring_material.emission_enabled = true
+    ring_material.emission = Color(0.08, 0.52, 1.0)
+    ring_material.emission_energy_multiplier = 1.8
+    ring_mesh.material_override = ring_material
+    avatar.add_child(ring_mesh)
+
+    var accent = MeshInstance3D.new()
+    accent.name = "ShoulderAccent"
+    var accent_mesh = BoxMesh.new()
+    accent_mesh.size = Vector3(0.92, 0.12, 0.30)
+    accent.mesh = accent_mesh
+    accent.position = Vector3(0, 1.28, 0)
+    var accent_material = StandardMaterial3D.new()
+    accent_material.albedo_color = Color(0.50, 0.32, 1.0)
+    accent_material.emission_enabled = true
+    accent_material.emission = Color(0.30, 0.12, 1.0)
+    accent_material.emission_energy_multiplier = 0.8
+    accent.material_override = accent_material
+    avatar.add_child(accent)
+
+    var spawn_light = OmniLight3D.new()
+    spawn_light.name = "SpawnGlow"
+    spawn_light.position.y = 1.0
+    spawn_light.light_color = Color(0.20, 0.60, 1.0)
+    spawn_light.light_energy = 2.2
+    spawn_light.omni_range = 5.0
+    avatar.add_child(spawn_light)
+    var spawn_tween = create_tween()
+    spawn_tween.tween_property(spawn_light, "light_energy", 0.0, 0.8)
+    spawn_tween.tween_callback(spawn_light.queue_free)
     var head_mesh = MeshInstance3D.new()
     var head = SphereMesh.new()
     head.radius = 0.28
@@ -328,10 +390,11 @@ func _create_remote_avatar(peer_id: int) -> Node3D:
     avatar.add_child(head_mesh)
     var name_tag = Label3D.new()
     name_tag.text = "PLAYER %d" % peer_id
-    name_tag.position.y = 2.35
+    name_tag.position.y = 2.48
     name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
     name_tag.font_size = 40
     name_tag.pixel_size = 0.006
+    name_tag.modulate = Color(0.66, 0.88, 1.0)
     avatar.add_child(name_tag)
     add_child(avatar)
     return avatar
@@ -382,6 +445,13 @@ func _build_hud():
     top.add_theme_font_size_override("font_size", 22)
     top.add_theme_color_override("font_color", Color(0.93,0.96,1))
     hud.add_child(top)
+
+    network_label = Label.new()
+    network_label.position = Vector2(30, 52)
+    network_label.add_theme_font_size_override("font_size", 13)
+    network_label.add_theme_color_override("font_color", Color(0.55, 0.65, 0.78))
+    network_label.text = "NETWORK  •  OFFLINE"
+    hud.add_child(network_label)
 
     health_label = Label.new()
     health_label.position = Vector2(28, 575)
@@ -978,7 +1048,7 @@ func _show_party_preview():
         NetworkManager.close_session()
         host_button.disabled = false
         join_button.disabled = false
-        address_input.editable = true
+        host_address_input.editable = true
         status.text = NetworkManager.last_status
     )
     buttons.add_child(disconnect_button)

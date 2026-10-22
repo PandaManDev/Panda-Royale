@@ -55,3 +55,51 @@ jobs:
           name: Panda Royale ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('Build {0}', github.sha) }}
           generate_release_notes: true
           files: build/PandaRoyale.exe
+
+  build-launcher:
+    name: Package Panda Royale Launcher
+    needs: build-windows
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Download Windows game executable
+        uses: actions/download-artifact@v4
+        with:
+          name: PandaRoyale-Windows-${{ github.ref_name }}
+          path: package
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build launcher executable
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          python -m PyInstaller --onefile --noconsole launcher/launcher.py --name PandaRoyaleLauncher
+
+      - name: Assemble launcher package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/PandaRoyale | Out-Null
+          Copy-Item package/PandaRoyale.exe dist/PandaRoyale/PandaRoyale.exe
+          Copy-Item dist/PandaRoyaleLauncher.exe dist/PandaRoyale/PandaRoyaleLauncher.exe
+          Set-Content -Path dist/PandaRoyale/README.txt -Value "Run PandaRoyaleLauncher.exe to open the Panda Royale launcher. Keep both EXE files in this folder."
+          Compress-Archive -Path dist/PandaRoyale/* -DestinationPath dist/PandaRoyale-Windows-Launcher.zip -Force
+
+      - name: Upload launcher package
+        uses: actions/upload-artifact@v4
+        with:
+          name: PandaRoyale-Windows-Launcher-${{ github.ref_name }}
+          path: dist/PandaRoyale-Windows-Launcher.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach launcher package to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('build-{0}', github.sha) }}
+          name: Panda Royale ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('Build {0}', github.sha) }}
+          files: dist/PandaRoyale-Windows-Launcher.zip

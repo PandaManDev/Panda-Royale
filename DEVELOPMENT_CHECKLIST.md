@@ -7,7 +7,8 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 - [x] Launcher supports optional Discord Rich Presence using a configured Discord application ID.
 - [x] Presence connection is best-effort; RPC failure does not intentionally block game launch.
 - [x] Launcher clears presence when the launcher closes.
-- [ ] Configure a real Panda Royale Discord Application ID; no game-specific ID has been created or verified in this repository.
+- [x] Launcher automatically attempts the local Discord IPC connection and retries when Discord is unavailable at first.
+- [ ] Configure a real Panda Royale Discord Application ID once; no game-specific ID has been created or verified in this repository.
 - [ ] Verify presence with the Discord desktop client on Windows.
 - [ ] Run Godot 4.7 headless import and main-scene smoke test.
 - [ ] Build and test the Windows game + launcher ZIP end-to-end.
@@ -17,10 +18,9 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 ## Discord Rich Presence setup
 
 1. Create a Discord application in the Discord Developer Portal for Panda Royale.
-2. Copy its Application ID (not a bot token).
-3. Put the ID in `discord_app_id.txt` beside `PandaRoyaleLauncher.exe`, or set `PANDA_ROYALE_DISCORD_APP_ID` before launching.
-4. Ensure the official Discord desktop client is running.
-5. Never package a Discord bot token or other secret.
+2. Copy its Application ID (not a bot token) and configure it once in the release package or environment; players will not need their own IDs.
+3. Ensure the official Discord desktop client is running and signed in. The launcher tries the local Rich Presence IPC connection and retries if Discord starts later.
+4. Never package a Discord bot token or other secret.
 
 ## Verification log
 

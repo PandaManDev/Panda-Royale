@@ -48,3 +48,10 @@ The party screen uses a friend-code flow instead of Steam invites. The host ente
 Friend codes currently package the host address and ENet port; they are not short account-based codes and there is no matchmaking/relay service. For friends connecting over the internet, the host may need to forward UDP port 24560 and allow the game through their firewall. The current ENet setup still replicates basic player movement only; shared combat, loot, and match state remain future work.
 
 Steam is not required for this flow.
+
+
+## Anti-cheat baseline
+
+The ENet host validates client movement snapshots before relaying them: it rejects non-finite coordinates, checks movement speed and world bounds, limits update frequency, logs strikes, and disconnects a peer after repeated violations. This is an early server-side sanity layer intended to make basic teleport/speed exploits harder.
+
+**Security limitation:** this prototype is not yet cheat-proof. The current game still runs important movement, damage, loot, and match logic on clients, and the host does not yet authoritatively simulate all player actions. A production anti-cheat needs server-authoritative movement and combat, validated fire/reload/ammo/loot actions, and testing against false positives. Do not treat this baseline as a guarantee against cheating.

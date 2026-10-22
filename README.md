@@ -102,3 +102,10 @@ These are preliminary targets for the current Godot 4.7 prototype, not verified 
 **Important:** These figures are estimates and have not been validated through a broad hardware benchmark. Actual performance depends on the build, resolution, graphics settings, drivers, background applications, and the state of game optimization. Requirements will be updated after testing on a range of PCs.
 
 The Windows launcher includes a **SYSTEM REQUIREMENTS** button to view these provisional targets before starting the game.
+
+
+## Minimum-requirements gate in the launcher
+
+The launcher checks the PC before allowing the game to be installed or launched. It currently blocks those actions if the system is not Windows 10/11, has fewer than 2 logical CPU cores, has less than 4 GB detected physical RAM, or has less than 1 GB free in the per-user install location. The System Requirements window shows detected values and whether these checks pass.
+
+The launcher itself is not blocked from opening, because users need it to see the failure message and system details. This check cannot reliably determine GPU/OpenGL compatibility using only the lightweight built-in Windows APIs, so graphics support is disclosed as a separate requirement rather than falsely claiming it has been verified. These requirements are provisional and should be revised after hardware testing.

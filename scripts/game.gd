@@ -1041,17 +1041,17 @@ func _show_party_preview():
     )
     buttons.add_child(close_button)
 
-    var disconnect_button = Button.new()
-    disconnect_button.text = "DISCONNECT"
-    disconnect_button.custom_minimum_size = Vector2(160, 44)
-    disconnect_button.pressed.connect(func():
+    var disconnect_panel_button = Button.new()
+    disconnect_panel_button.text = "DISCONNECT"
+    disconnect_panel_button.custom_minimum_size = Vector2(160, 44)
+    disconnect_panel_button.pressed.connect(func():
         NetworkManager.close_session()
         host_button.disabled = false
         join_button.disabled = false
         host_address_input.editable = true
         status.text = NetworkManager.last_status
     )
-    buttons.add_child(disconnect_button)
+    buttons.add_child(disconnect_panel_button)
 
 func try_open_chest(opener):
     for node in get_children():

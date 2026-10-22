@@ -155,3 +155,8 @@ The launcher itself is not blocked from opening, because users need it to see th
 - Online party codes currently connect directly over ENet. There is no matchmaking, relay, or real party service.
 - Combat, health, loot, storm, and match results are not fully server-authoritative. The current prototype should not be considered secure against cheating in online play.
 - These changes have not been validated in a live multiplayer session or benchmarked across hardware.
+
+
+## Discord Rich Presence
+
+The Windows launcher supports optional Discord Rich Presence when a Panda Royale Discord Application ID is configured. Put the ID in `discord_app_id.txt` beside the launcher or set `PANDA_ROYALE_DISCORD_APP_ID`. Run the official Discord desktop client. The presence currently reports a generic playing state and is managed by the launcher; launching the game directly does not yet provide RPC. No bot token is required or should be included. See `DEVELOPMENT_CHECKLIST.md` for setup and verification status.

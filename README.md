@@ -89,6 +89,14 @@ The current prototype has server-side sanity checks for replicated movement snap
 The launcher checks its own folder and common per-user/system install paths for `PandaRoyale.exe`. If it cannot find a valid executable, it warns the user and offers to download the latest Windows build from the official GitHub Releases asset. Accepted downloads install to `%LOCALAPPDATA%\\PandaRoyale\\PandaRoyale.exe`; the launcher then offers to start the game. If the release asset is unavailable, it offers to open the official Releases page. An internet connection is required for downloading, and a published Windows executable must exist in the latest release.
 
 
+## Bug reports and crash recovery
+
+The game main menu and Windows launcher include **REPORT A BUG** actions that open a pre-filled GitHub issue form. The launcher can also offer a report when the game exits unexpectedly during startup. The game writes a small session marker; if a marker remains on the next launch, it shows a crash-recovery support dialog and offers to open the issue form.
+
+**Important limitations:** Godot cannot guarantee that every native crash or power loss will produce a detailed crash dump. The current recovery dialog detects an unclean prior session, not the exact cause of a crash. Reports open in the user's browser with a pre-filled title and body; the user must review and submit the issue on GitHub while signed in. The app does not embed a GitHub token or submit issues silently. Reports are public, so users should remove passwords, tokens, or other private data before submitting.
+
+A structured issue template is available under .github/ISSUE_TEMPLATE/bug_report.yml. Crash detection, UI interactions, and Windows packaging need testing in a built game and launcher.
+
 ## Launcher Python DLL troubleshooting
 
 If `PandaRoyaleLauncher.exe` displays `Failed to load Python DLL` or reports that `python312.dll` cannot be found, use a fresh launcher ZIP from the latest successful GitHub Actions release. The launcher package is built in directory mode so the bundled `_internal` runtime folder stays beside `PandaRoyaleLauncher.exe`. Do not copy only the launcher EXE out of the ZIP. Extract the entire ZIP, keep `PandaRoyale.exe`, `PandaRoyaleLauncher.exe`, and the generated `_internal` folder together, then run the launcher. This packaging change needs a successful Windows workflow run before it can be considered verified.

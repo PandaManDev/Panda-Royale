@@ -894,9 +894,27 @@ func _show_party_preview():
     )
     outer.add_child(join_button)
 
+    var disconnect_button = Button.new()
+    disconnect_button.text = "DISCONNECT / RESET"
+    disconnect_button.custom_minimum_size = Vector2(360, 42)
+    disconnect_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    disconnect_button.pressed.connect(func():
+        NetworkManager.close_session()
+        host_button.disabled = false
+        join_button.disabled = false
+        friend_code_input.text = ""
+        status.text = "Disconnected. Host a new party or join a friend."
+    )
+    outer.add_child(disconnect_button)
+
     var network_callback = func(message: String):
         if is_instance_valid(status):
             status.text = message
+        if message.to_lower().contains("failed") or message.to_lower().contains("disconnected"):
+            if is_instance_valid(host_button):
+                host_button.disabled = false
+            if is_instance_valid(join_button):
+                join_button.disabled = false
     if not NetworkManager.status_changed.is_connected(network_callback):
         NetworkManager.status_changed.connect(network_callback)
     panel.tree_exited.connect(func():

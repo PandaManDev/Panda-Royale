@@ -7,6 +7,8 @@ import urllib.request
 import webbrowser
 import urllib.parse
 import time
+import logging
+from logging.handlers import RotatingFileHandler
 import ctypes
 from ctypes import wintypes
 from pathlib import Path
@@ -65,7 +67,7 @@ def run_background_service(game_pid: int) -> int:
                     from pypresence import Presence
                     client = Presence(app_id)
                     client.connect()
-                    client.update(details="Playing Panda Royale", state="In the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")
+                    client.update(details="Playing Panda Royale", state="In the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")\n                    logger.info("Discord Rich Presence connected")
                 except Exception:
                     if client is not None:
                         try:
@@ -114,6 +116,28 @@ def launcher_folder() -> Path:
 def install_folder() -> Path:
     base = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
     return Path(base) / "PandaRoyale"
+
+
+def configure_logging(log_name: str = "launcher.log") -> logging.Logger:
+    """Write rotating diagnostics to the user's local AppData install folder."""
+    logger = logging.getLogger("panda_royale")
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        try:
+            log_dir = install_folder() / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            handler = RotatingFileHandler(
+                log_dir / log_name, maxBytes=1_000_000, backupCount=3, encoding="utf-8"
+            )
+            handler.setFormatter(logging.Formatter(
+                "%(asctime)s | %(levelname)s | %(process)d | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            ))
+            logger.addHandler(handler)
+        except OSError:
+            # Logging must never prevent the launcher or game from starting.
+            logger.addHandler(logging.NullHandler())
+    return logger
 
 
 MIN_RAM_GB = 4

@@ -11,7 +11,7 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 - [x] Rich Presence uses the existing signed-in desktop session; no OAuth popup, password, user token, or bot token is requested.
 - [x] Set the supplied Discord Application ID (`1562710544010584155`) as the launcher's default.
 - [ ] Verify presence with the Discord desktop client on Windows.
-- [ ] Run Godot 4.7 headless import and main-scene smoke test.
+- [ ] Run Godot 4.7 headless import and main-scene smoke test with script parse failures treated as build failures.
 - [ ] Build and test the Windows game + launcher ZIP end-to-end.
 - [ ] Improve presence states for lobby, solo/duos, and active match; current presence is generic.
 - [ ] Add game-native RPC for launches that bypass the launcher, or document launcher-required presence.
@@ -41,7 +41,8 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 - [x] Improved remote-player readability with emissive materials, a glowing floor ring, a purple shoulder accent, and a short spawn glow.
 - [x] Fixed the party panel's bottom disconnect action to re-enable the actual host-address input instead of referencing an undefined variable.
 - [x] Static source inspection confirmed the new network HUD and remote visual components exist, and the GDScript parentheses are balanced. This is not a GDScript parser or runtime test.
-- [ ] GitHub Actions Windows/Linux export workflow triggered by commit `eae616b57376e30daabfc0a1fdac38c0460b6d84` is in progress; inspect its result before treating the build as verified.
+- [x] Reviewed GitHub Actions logs and found two GDScript parse errors that the previous workflow did not fail on; added explicit script-parse checks to the release workflow.
+- [ ] Confirm the new parse-check step passes and that the rebuilt executable launches to the menu.
 - [ ] Run Godot 4.7 import and headless main-scene smoke test.
 - [ ] Test two separate instances on a LAN: host, join, movement replication, remote spawn/disconnect, and reconnect.
 - [ ] Test internet joining with UDP 24560 forwarded; verify that UI explains connection failures clearly.
@@ -54,3 +55,20 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 3. Review peer disconnect and reconnect behavior, then add a small online party roster with connected peer IDs.
 4. Prioritize server-authoritative gameplay actions; movement snapshot validation alone does not prevent combat or loot cheating.
 5. Keep all unexecuted Godot and live-network tests marked pending until actually run.
+
+
+## Black-screen incident — 2026-10-22
+
+- [x] Root cause found in GitHub Actions logs: `scripts/game.gd` had duplicate local variable `disconnect_button` declarations in the same function scope, preventing the game script from loading.
+- [x] Fixed the second button variable name to `disconnect_panel_button`.
+- [x] Fixed strict type inference errors in `scripts/network_manager.gd` by explicitly typing elapsed time and allowed movement distance.
+- [x] Updated the Windows release workflow to run Godot script parse checks for `network_manager.gd` and `game.gd` before smoke test/export.
+- [ ] Verify the new GitHub Actions parse checks and export after these fixes.
+- [ ] Launch the freshly rebuilt EXE on Windows and confirm the boot screen transitions to the main menu; CI cannot verify the actual rendered screen.
+
+### Exact next steps
+
+1. Inspect the newest Actions run and fix any GDScript parse failures it reports.
+2. If checks pass, download the EXE from that successful release and launch it on Windows.
+3. Confirm the purple boot screen clears and the main menu appears; if not, collect the Godot log from `%APPDATA%\\Godot\\app_userdata\\Panda Royale\\logs`.
+4. Only mark the black-screen bug resolved after a real Windows launch is confirmed.

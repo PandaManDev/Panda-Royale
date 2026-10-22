@@ -6,6 +6,7 @@ import threading
 import urllib.request
 import webbrowser
 import urllib.parse
+import time
 import ctypes
 from ctypes import wintypes
 from pathlib import Path
@@ -130,8 +131,9 @@ class Launcher:
         self.root.geometry("760x500")
         self.root.minsize(680, 460)
         self.root.configure(bg=BG)
-        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
+        self.root.protocol("WM_DELETE_WINDOW", self.close_launcher)
         self.game_process = None
+        self.rpc_client = None
         self.dots = 0
         self.download_active = False
         self.game_path = None
@@ -437,6 +439,45 @@ class Launcher:
     def open_download_page(self):
         webbrowser.open(RELEASES_URL)
 
+    def _discord_application_id(self):
+        """Read the game's Discord application ID without shipping a secret/token."""
+        configured = os.environ.get("PANDA_ROYALE_DISCORD_APP_ID", "").strip()
+        if configured:
+            return configured
+        try:
+            return (launcher_folder() / "discord_app_id.txt").read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+
+    def _start_discord_presence(self):
+        """Best-effort Discord Rich Presence; game launch must never depend on it."""
+        app_id = self._discord_application_id()
+        if not app_id:
+            self.news.configure(text="STATUS  •  Discord Rich Presence not configured", fg=MUTED)
+            return
+        try:
+            from pypresence import Presence
+            client = Presence(app_id)
+            client.connect()
+            client.update(details="Playing Panda Royale", state="Dropping into the arena", start=int(time.time()), large_text="Panda Royale", small_text="Early Access")
+            self.rpc_client = client
+            self.news.configure(text="STATUS  •  Discord Rich Presence connected", fg=CYAN)
+        except Exception as exc:
+            self.rpc_client = None
+            self.news.configure(text="STATUS  •  Discord RPC unavailable (game still launches)", fg=MUTED)
+            self.status_detail.configure(text=f"Game launch is unaffected. Discord RPC could not connect: {exc}")
+
+    def close_launcher(self):
+        client = self.rpc_client
+        self.rpc_client = None
+        if client is not None:
+            try:
+                client.clear()
+                client.close()
+            except Exception:
+                pass
+        self.root.destroy()
+
     def launch_game(self):
         specs = get_system_specs()
         self.requirements_ok = bool(specs["passed"])
@@ -456,6 +497,7 @@ class Launcher:
             self.status_detail.configure(text="Starting Panda Royale. This launcher can stay open.")
             self.news.configure(text="STATUS  •  Launch request sent", fg=CYAN)
             self.game_process = subprocess.Popen([str(game)], cwd=str(game.parent))
+            self._start_discord_presence()
             self.play_button.configure(state="disabled")
             self.install_button.configure(state="disabled")
             self.status_title.configure(text="WAITING FOR GAME WINDOW...")

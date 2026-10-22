@@ -33,9 +33,16 @@ var hud_update_timer := 0.0
 var eliminations := 0
 var selected_mode := "SOLO"
 var remote_players: Dictionary = {}
+var performance_preset := "LOW"
+var daily_challenge_label: Label
+var challenge_progress := 0
+var challenge_goal := 5
+var challenge_date := ""
+var profile_path := "user://panda_profile.cfg"
 
 func _ready():
     randomize()
+    _load_local_profile()
     # Build a visible fallback immediately so a failed world/menu setup never
     # leaves the player staring at an empty clear-color window.
     _build_boot_screen()
@@ -456,6 +463,7 @@ func damage_bot(bot, amount):
             if is_instance_valid(player):
                 player.wood = min(200, player.wood + 20)
                 award_xp(50)
+                _record_daily_elimination()
             bot.queue_free()
             # drop a little ammo/health pickup
             var pickup = Area3D.new()
@@ -488,11 +496,21 @@ func _build_menus():
     _menu_label(main_box, "DROP IN  /  LOOT UP  /  OUTLAST EVERYONE", 12, Color(0.68, 0.76, 0.86), true)
     _menu_spacer(main_box, 8)
     _menu_label(main_box, "SEASON 00     •     EARLY ACCESS BUILD", 12, Color(0.64, 0.47, 1.0), true)
+    daily_challenge_label = Label.new()
+    daily_challenge_label.text = "DAILY CHALLENGE  •  ELIMINATE 5 RIVALS  •  %d / %d" % [challenge_progress, challenge_goal]
+    daily_challenge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    daily_challenge_label.add_theme_font_size_override("font_size", 12)
+    daily_challenge_label.add_theme_color_override("font_color", Color(0.45, 0.92, 0.75))
+    main_box.add_child(daily_challenge_label)
     _menu_spacer(main_box, 14)
     var mode_picker = OptionButton.new()
-    mode_picker.add_item("SOLO")
-    mode_picker.add_item("DUOS (PREVIEW)")
-    mode_picker.item_selected.connect(func(index): selected_mode = "DUOS" if index == 1 else "SOLO")
+    mode_picker.add_item("SOLO  •  12 BOTS")
+    mode_picker.add_item("DUOS  •  LOCAL PREVIEW")
+    mode_picker.item_selected.connect(func(index):
+        selected_mode = "DUOS" if index == 1 else "SOLO"
+        if daily_challenge_label:
+            daily_challenge_label.text = "DAILY CHALLENGE  •  ELIMINATE 5 RIVALS  •  %d / %d" % [challenge_progress, challenge_goal]
+    )
     main_box.add_child(mode_picker)
     _menu_button(main_box, "PLAY", _start_match, true)
     _menu_button(main_box, "FRIENDS  /  PARTY CODES", _show_party_preview, false)
@@ -520,6 +538,18 @@ func _build_menus():
     _menu_label(settings_box, "GAME SETTINGS", 32, Color(0.85, 0.94, 1.0), true)
     _menu_label(settings_box, "Tune your aim, graphics and display.", 13, Color(0.68, 0.76, 0.86), false)
     _menu_spacer(settings_box, 8)
+    var graphics_title = Label.new()
+    graphics_title.text = "PERFORMANCE PRESET  •  RESTART NOT REQUIRED"
+    graphics_title.add_theme_font_size_override("font_size", 13)
+    graphics_title.add_theme_color_override("font_color", Color(0.78, 0.86, 0.94))
+    settings_box.add_child(graphics_title)
+    var graphics_picker = OptionButton.new()
+    graphics_picker.add_item("LOW  •  BEST FOR OLDER PCS")
+    graphics_picker.add_item("BALANCED")
+    graphics_picker.add_item("HIGH")
+    graphics_picker.select(0 if performance_preset == "LOW" else (1 if performance_preset == "BALANCED" else 2))
+    graphics_picker.item_selected.connect(func(index): _apply_performance_preset(["LOW", "BALANCED", "HIGH"][index]))
+    settings_box.add_child(graphics_picker)
 
     var sensitivity_title = Label.new()
     sensitivity_title.text = "MOUSE SENSITIVITY"
@@ -917,6 +947,64 @@ func award_xp(amount: int):
         player.xp -= required
         player.level += 1
         required = player.level * 100
+    _save_local_profile()
+
+func _load_local_profile():
+    var config := ConfigFile.new()
+    var err := config.load(profile_path)
+    var today := Time.get_date_string_from_system()
+    if err == OK:
+        performance_preset = str(config.get_value("settings", "performance_preset", "LOW"))
+        challenge_date = str(config.get_value("daily", "date", ""))
+        challenge_progress = int(config.get_value("daily", "eliminations", 0))
+    if challenge_date != today:
+        challenge_date = today
+        challenge_progress = 0
+    _apply_performance_preset(performance_preset, false)
+
+func _save_local_profile():
+    var config := ConfigFile.new()
+    config.set_value("settings", "performance_preset", performance_preset)
+    config.set_value("daily", "date", challenge_date)
+    config.set_value("daily", "eliminations", challenge_progress)
+    config.save(profile_path)
+
+func _apply_performance_preset(preset: String, save_profile := true):
+    performance_preset = preset
+    match preset:
+        "LOW":
+            get_viewport().msaa_3d = Viewport.MSAA_DISABLED
+            if world_env and world_env.environment:
+                world_env.environment.glow_enabled = false
+                world_env.environment.fog_enabled = false
+            for light in get_tree().get_nodes_in_group("dynamic_lights"):
+                if light is Light3D:
+                    light.shadow_enabled = false
+            Engine.max_fps = 60
+        "BALANCED":
+            get_viewport().msaa_3d = Viewport.MSAA_2X
+            if world_env and world_env.environment:
+                world_env.environment.glow_enabled = false
+                world_env.environment.fog_enabled = true
+            Engine.max_fps = 60
+        "HIGH":
+            get_viewport().msaa_3d = Viewport.MSAA_4X
+            if world_env and world_env.environment:
+                world_env.environment.glow_enabled = true
+                world_env.environment.fog_enabled = true
+            Engine.max_fps = 120
+    if save_profile:
+        _save_local_profile()
+
+func _record_daily_elimination():
+    var today := Time.get_date_string_from_system()
+    if challenge_date != today:
+        challenge_date = today
+        challenge_progress = 0
+    challenge_progress = min(challenge_goal, challenge_progress + 1)
+    if daily_challenge_label:
+        daily_challenge_label.text = "DAILY CHALLENGE  •  ELIMINATE 5 RIVALS  •  %d / %d" % [challenge_progress, challenge_goal]
+    _save_local_profile()
 
 func _set_crosshair_visible(value: bool):
     if crosshair_label:

@@ -118,3 +118,26 @@ Design note: this is a per-user background companion, not a Windows Service Cont
 - [x] Log files rotate at approximately 1 MB with up to three backups per log; inability to create logs does not intentionally block game launch.
 - [ ] Verify Python syntax and Windows launcher package build in GitHub Actions.
 - [ ] Inspect actual logs on Windows after launch, Discord-unavailable retry, and game shutdown.
+
+
+## Launcher upgrade — updates, repair, settings, tray and diagnostics — 2026-10-22
+
+- [x] Added a launcher Tools menu with update check, settings, log folder and install folder actions.
+- [x] Added GitHub Releases API update discovery; the launcher identifies the latest release asset and reports whether the installed version differs.
+- [x] Added a version marker in the per-user install folder and download-to-temporary-file before replacing the installed game executable.
+- [x] Added a previous-executable backup and rollback attempt if replacing the game executable fails.
+- [x] Added persistent settings for Discord Rich Presence, startup update checks and minimize-to-tray preference.
+- [x] Added optional system tray menu (open launcher, check updates, quit), using pystray/Pillow packaged by the Windows workflow.
+- [x] Added settings/log/install-folder UI and diagnostic logging for update checks, settings saves, install outcomes and launcher shutdown.
+- [x] Routed background companion diagnostics to its dedicated background-service.log file.
+- [ ] Verify Python syntax, PyInstaller packaging and GitHub Actions workflow for the latest commits.
+- [ ] Test update discovery against a real published GitHub Release containing PandaRoyale.exe.
+- [ ] Test install/repair with the game closed, with the game running, network interruption, and failed download; confirm the previous executable remains recoverable.
+- [ ] Test tray restore/quit and Discord RPC toggle on Windows.
+- [ ] Confirm log output and settings persistence on Windows.
+
+Implementation notes:
+- Update discovery is automatic on startup when enabled, but downloading/installing still requires user confirmation; this avoids silently replacing game files.
+- Update detection requires a published GitHub Release with a PandaRoyale.exe asset. If no release asset exists, the launcher reports that the check is unavailable and does not change the installed game.
+- The launcher package currently keeps the launcher executable separate from the game executable. This change updates the game build, not the launcher binary itself.
+- Windows runtime behavior remains unverified until the packaged launcher is run on a Windows desktop.

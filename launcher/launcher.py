@@ -89,6 +89,8 @@ class Launcher:
         self.play_button.pack(side="left")
         self.install_button = tk.Button(buttons, text="INSTALL / REPAIR GAME", command=self.install_game, font=("Segoe UI", 10, "bold"), bg="#252b3d", fg=TEXT, activebackground="#343c54", activeforeground=TEXT, relief="flat", padx=18, pady=12, cursor="hand2")
         self.install_button.pack(side="left", padx=(10, 0))
+        self.steam_button = tk.Button(buttons, text="ADD TO STEAM", command=self.add_to_steam, font=("Segoe UI", 10, "bold"), bg="#17344a", fg=TEXT, activebackground="#24536f", activeforeground=TEXT, relief="flat", padx=16, pady=12, cursor="hand2")
+        self.steam_button.pack(side="left", padx=(10, 0))
         tk.Label(buttons, text="EARLY ACCESS  •  WINDOWS", font=("Segoe UI", 8, "bold"), fg=MUTED, bg=PANEL).pack(side="right", anchor="s")
 
     def _animate(self):
@@ -223,6 +225,40 @@ class Launcher:
         self.news.configure(text="STATUS  •  Game process is active", fg=CYAN)
         self.play_button.configure(state="normal")
         self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
+
+    def add_to_steam(self):
+        game = self.game_path or find_installed_game()
+        if not game:
+            if messagebox.askyesno("Install Panda Royale first", "Panda Royale isn't installed yet. Would you like to download it before adding it to Steam?"):
+                self.install_game()
+            return
+
+        # Steam does not expose a supported URI that silently registers an arbitrary
+        # non-Steam executable. Copy the real EXE path and open Steam's Games view.
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(str(game))
+            self.root.update()
+        except tk.TclError as exc:
+            messagebox.showerror("Could not copy game path", f"Copy this path manually instead:\\n\\n{game}\\n\\nDetails: {exc}")
+            return
+
+        try:
+            webbrowser.open("steam://open/games")
+        except Exception:
+            pass
+
+        messagebox.showinfo(
+            "Add Panda Royale to Steam",
+            "The game path has been copied to your clipboard.\\n\\n"
+            "In Steam:\\n"
+            "1. Open the Games menu (or click + Add a Game).\\n"
+            "2. Choose 'Add a Non-Steam Game to My Library'.\\n"
+            "3. Click Browse and select PandaRoyale.exe at this path:\\n\\n"
+            f"{game}\\n\\n"
+            "4. Add the selected program. You can rename it to Panda Royale in your Steam Library.\\n\\n"
+            "This adds a shortcut to your own Steam library; it does not publish the game on Steam."
+        )
 
     def open_download_page(self):
         webbrowser.open(RELEASES_URL)

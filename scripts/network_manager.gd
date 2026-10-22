@@ -132,13 +132,37 @@ func _validate_player_state(peer_id: int, world_position: Vector3, yaw: float) -
     return true
 
 func _flag_peer(peer_id: int, reason: String) -> void:
-    var strikes := int(_peer_strikes.get(peer_id, 0)) + 1
+    # Count only recent violations so one-off lag spikes do not punish a player forever.
+    var now := Time.get_ticks_msec() / 1000.0
+    var times: Array = _peer_strike_times.get(peer_id, [])
+    var recent: Array = []
+    for stamp in times:
+        if now - float(stamp) <= STRIKE_WINDOW_SECONDS:
+            recent.append(stamp)
+    recent.append(now)
+    _peer_strike_times[peer_id] = recent
+    var strikes := recent.size()
     _peer_strikes[peer_id] = strikes
+    var log_line := "[AntiCheat] Peer %d: %s (strike %d/%d in %.0fs)" % [peer_id, reason, strikes, MAX_STRIKES, STRIKE_WINDOW_SECONDS]
     anti_cheat_event.emit(peer_id, reason, strikes)
-    push_warning("[AntiCheat] Peer %d: %s (strike %d/%d)" % [peer_id, reason, strikes, MAX_STRIKES])
+    push_warning(log_line)
+    _append_anti_cheat_log(log_line)
     if strikes >= MAX_STRIKES and multiplayer.is_server() and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
         _set_status("Disconnected peer %d after repeated invalid movement." % peer_id)
+        _append_anti_cheat_log("[AntiCheat] Disconnected peer %d after repeated violations." % peer_id)
         multiplayer.multiplayer_peer.disconnect_peer(peer_id)
+
+func _append_anti_cheat_log(message: String) -> void:
+    # user:// is writable in exported builds; the host's local log is not sent to clients.
+    var file := FileAccess.open("user://anti_cheat.log", FileAccess.READ_WRITE)
+    if file == null:
+        file = FileAccess.open("user://anti_cheat.log", FileAccess.WRITE)
+    if file == null:
+        push_warning("[AntiCheat] Could not open local anti-cheat log.")
+        return
+    file.seek_end()
+    file.store_line("%s | %s" % [Time.get_datetime_string_from_system(), message])
+    file.close()
 
 func _on_peer_connected(id: int) -> void:
     _peer_last_state_time[id] = Time.get_ticks_msec() / 1000.0

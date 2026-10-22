@@ -71,3 +71,8 @@ The current prototype has server-side sanity checks for replicated movement snap
 ### Launcher auto-detection and installation
 
 The launcher checks its own folder and common per-user/system install paths for `PandaRoyale.exe`. If it cannot find a valid executable, it warns the user and offers to download the latest Windows build from the official GitHub Releases asset. Accepted downloads install to `%LOCALAPPDATA%\\PandaRoyale\\PandaRoyale.exe`; the launcher then offers to start the game. If the release asset is unavailable, it offers to open the official Releases page. An internet connection is required for downloading, and a published Windows executable must exist in the latest release.
+
+
+## Add Panda Royale to Steam (non-Steam shortcut)
+
+You can add the Windows game to your personal Steam Library without publishing it on Steam or paying a Steam Direct fee. First install Panda Royale, then open the launcher and click **ADD TO STEAM**. The launcher copies the detected `PandaRoyale.exe` path and opens Steam. In Steam, choose **Games → Add a Non-Steam Game to My Library**, select **Browse**, choose `PandaRoyale.exe`, and add it. You can rename the shortcut and customise its artwork from your Steam Library. This is a local shortcut only; it does not upload or publish Panda Royale to Steam. Steam must be installed for the Steam Library step.

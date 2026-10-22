@@ -293,7 +293,7 @@ class Launcher:
     def _download_success(self, path):
         self.download_active = False
         self.game_path = path
-        self.install_button.configure(state="normal", text="REINSTALL / REPAIR")
+        self.install_button.configure(state="normal", text="REINSTALL / REPAIR", command=self.install_game)
         self.play_button.configure(state="normal")
         self.status_title.configure(text="INSTALLATION COMPLETE")
         self.status_detail.configure(text=f"Panda Royale is installed and ready.\nLocation: {path}")

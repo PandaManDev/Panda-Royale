@@ -8,6 +8,7 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 - [x] Presence connection is best-effort; RPC failure does not intentionally block game launch.
 - [x] Launcher clears presence when the launcher closes.
 - [x] Launcher automatically attempts the local Discord IPC connection and retries when Discord is unavailable at first.
+- [x] Rich Presence uses the existing signed-in desktop session; no OAuth popup, password, user token, or bot token is requested.
 - [x] Set the supplied Discord Application ID (`1562710544010584155`) as the launcher's default.
 - [ ] Verify presence with the Discord desktop client on Windows.
 - [ ] Run Godot 4.7 headless import and main-scene smoke test.
@@ -17,7 +18,7 @@ This file is the hand-off point for ongoing development. Statuses distinguish co
 
 ## Discord Rich Presence setup
 
-1. Confirm the supplied ID belongs to the Panda Royale application in Discord Developer Portal.
+1. Confirm the supplied ID belongs to the Panda Royale application in Discord Developer Portal. The ID is public configuration, not a credential.
 2. Test on Windows with the official Discord desktop client signed in; confirm presence appears and retries if Discord starts later.
 3. Never package a Discord bot token or other secret.
 
